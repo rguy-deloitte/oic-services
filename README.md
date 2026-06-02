@@ -7,7 +7,7 @@ OIC Helper functions:
 
 ## Architecture
 
-![Architecture Diagram](./oics-architecture.png)
+![Architecture Diagram](./oic-services-architecture.png)
 
 Words...
 
