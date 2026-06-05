@@ -1,0 +1,18 @@
+{
+	"name": "oic-services",
+	"version": "1.0.0",
+	"description": "Function to split structured data into FBDI format",
+	"main": "func.js",
+	"author": "",
+	"license": "Apache-2.0",
+	"dependencies": {
+		"@fnproject/fdk": ">=0.0.98",
+		"dayjs": "^1.11.21",
+		"jszip": "^3.10.1",
+		"jexl": "^2.3.0",
+		"oci-common": "^2.132.0",
+		"oci-objectstorage": "^2.132.0",
+		"yaml": "^2.9.0",
+		"xlsx": "^0.18.5"
+	}
+}

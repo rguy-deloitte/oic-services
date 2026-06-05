@@ -50,6 +50,314 @@ oci session authenticate (then choose 70, then type OCITF)
 terraform apply
 ```
 
+## Row Splitter Function
+
+### Purpose
+
+This function is triggered by an OCI Object Storage `Create Object` event.
+
+For each input file, it:
+
+1. Loads the matching format YAML from Object Storage.
+2. Loads and parses the input file.
+3. Applies the splitting rules.
+4. Uploads `XlaTransactionUpload.zip` to the output prefix.
+5. Uploads `done.trg` to the same output prefix.
+
+### Supported Input Files
+
+- `.csv`
+- `.xls`
+- `.xlsx`
+- `.json`
+
+### Required OCI Setup
+
+#### Enable bucket object events
+
+In the target Object Storage bucket, enable `Emit object events`.
+
+#### Create an Events rule
+
+Create an Events rule for Object Storage `Create Object` events and set the action to this function.
+
+Example condition:
+
+```json
+{
+  "eventType": "com.oraclecloud.objectstorage.createobject",
+  "data": {
+    "additionalDetails": {
+      "bucketName": "<bucket-name>"
+    },
+    "resourceName": "fbdi-splitting/in/*"
+  }
+}
+```
+
+#### Grant the function access to Object Storage
+
+Example dynamic group rule:
+
+```text
+ALL {resource.type = 'fnfunc', resource.compartment.id = '<function-compartment-ocid>'}
+```
+
+Example policy:
+
+```text
+allow dynamic-group <dynamic-group-name> to manage objects in compartment <bucket-compartment-name> where all {target.bucket.name='<bucket-name>'}
+```
+
+### Object Naming Conventions
+
+#### Input file path
+
+Input files must be stored under a path containing `/in/`.
+
+Example:
+
+```text
+fbdi-splitting/in/test-format/test_data.csv
+```
+
+#### Format YAML path
+
+The format name is taken from the input file's parent directory.
+
+Example input:
+
+```text
+fbdi-splitting/in/test-format/test_data.csv
+```
+
+Expected format YAML:
+
+```text
+fbdi-splitting/formats/test-format.yaml
+```
+
+#### Output path
+
+The output prefix is created by replacing `/in/` with `/out/` and removing the input filename.
+
+Example input:
+
+```text
+fbdi-splitting/in/test-format/test_data.csv
+```
+
+Output prefix:
+
+```text
+fbdi-splitting/out/test-format/
+```
+
+Output objects:
+
+```text
+fbdi-splitting/out/test-format/XlaTransactionUpload.zip
+fbdi-splitting/out/test-format/done.trg
+```
+
+## Format YAML Requirements
+
+The format YAML must contain:
+
+- `metadata`
+- `groupBy`
+- `header`
+- `line`
+
+Example metadata:
+
+```yaml
+metadata:
+  name: LOCKTON_TR_ELW
+  version: 3
+```
+
+### Output Layouts
+
+See [examples/format.example.yaml](examples/format.example.yaml) for a complete example.
+
+`header` and `line` must use section blocks.
+
+Default `header` layout order:
+
+- `TRANSACTION_NUMBER`
+- `EVENT_TYPE_CODE`
+- `LEDGER_NAME`
+- `TRANSACTION_DATE`
+- `Character1` to `Character50`
+- `Number1` to `Number10`
+- `Date1` to `Date10`
+- `Long Character1` to `Long Character5`
+
+Default `line` layout order:
+
+- `TRANSACTION_NUMBER`
+- `LINE_NUMBER`
+- `Character1` to `Character100`
+- `Number1` to `Number30`
+- `Date1` to `Date10`
+- `Long Character1` to `Long Character5`
+
+Section blocks:
+
+- `Characters`
+- `Numbers`
+- `Dates`
+- `Long Characters`
+
+Each named field in a section block replaces the next consecutive field of that type. Remaining fields are filled with empty generic names.
+
+Example:
+
+```yaml
+header:
+  TRANSACTION_NUMBER:
+    sequence:
+      type: transaction
+      prefix: LCKTRELW
+      start: 10000000001000
+  EVENT_TYPE_CODE:
+    value: JOURNAL_BALANCES
+  LEDGER_NAME:
+    value: TR ACTUALS USD Apr
+  TRANSACTION_DATE:
+    from: C6
+    transform: ddmmyyyy_to_yyyymmdd
+  Characters:
+    EVENT_TYPE:
+      value: LCKTRBALANCE
+    REVERSAL_FLAG:
+      value: N
+  Long Characters:
+    DETAIL:
+      from: C9
+```
+
+The example above expands to `EVENT_TYPE`, `REVERSAL_FLAG`, `Character3` through `Character50`, `Number1` through `Number10`, `Date1` through `Date10`, and `DETAIL`, `Long Character2` through `Long Character5`.
+
+Optional size overrides can be set inside a section block:
+
+```yaml
+line:
+  TRANSACTION_NUMBER:
+    fromGroup: TRANSACTION_NUMBER
+  LINE_NUMBER:
+    sequence:
+      type: line
+  Numbers:
+    size: 12
+    DEFAULT_AMOUNT:
+      expr: number(C16) - number(C17)
+      format: currency
+```
+
+All non-fixed fields in `header` and `line` must be declared inside `Characters`, `Numbers`, `Dates`, or `Long Characters`.
+
+### Structure Options
+
+The optional `structure` block controls how worksheet columns are mapped.
+
+```yaml
+structure:
+  headerRowPresent: true
+  ignoreHeaderRow: true
+```
+
+Behavior:
+
+- `headerRowPresent: true` and `ignoreHeaderRow: true`: skip the first row and use `C1`, `C2`, `C3`, and so on.
+- `headerRowPresent: true` and `ignoreHeaderRow: false` or omitted: skip the first row and use the first row values as property names.
+- `headerRowPresent: false`: treat the first row as data and use `C1`, `C2`, `C3`, and so on.
+- If `structure` is omitted, both values are treated as `false`.
+
+### YAML Field Sources
+
+Supported source options:
+
+- `value`
+- `from`
+- `fromRoot`
+- `fromGroup`
+- `sequence`
+- `expr`
+
+Examples:
+
+```yaml
+SOURCE_SYSTEM_FILE_NAME:
+  fromRoot: filename
+
+SOURCE_SYSTEM_BASENAME:
+  fromRoot: basename
+
+DETAIL:
+  from: C9
+```
+
+Available root fields include:
+
+- `filename`: full input object path
+- `basename`: input filename only
+
+### Date Transform
+
+The `ddmmyyyy_to_yyyymmdd` transform accepts both padded and abbreviated dates.
+
+Examples:
+
+- `09/02/2026` -> `2026/02/09`
+- `9/2/26` -> `2026/02/09`
+- `2/1/26` -> `2026/01/02`
+
+### Output Files
+
+The function uploads:
+
+- `XlaTransactionUpload.zip`
+- `done.trg`
+
+The zip contains:
+
+- `XlaTrxH.csv`
+- `XlaTrxL.csv`
+- `Metadata_<metadata.name>.txt`
+
+### Event Payload Requirements
+
+The function expects these Object Storage event fields:
+
+- `data.resourceName`
+- `data.additionalDetails.bucketName`
+- `data.additionalDetails.namespace`
+
+### Logs
+
+Function logs are available through OCI Logging.
+
+To view them:
+
+1. Open `Developer Services -> Functions -> Applications`.
+2. Select the application.
+3. Open the `Monitoring` tab.
+4. Open the function invocation log.
+
+### Test Flow
+
+1. Deploy the function.
+2. Enable bucket object events.
+3. Create the Events rule.
+4. Upload an input file to the configured input prefix.
+5. Viewing function logs in OCI Logging
+6. Confirm that the output prefix contains:
+   - `XlaTransactionUpload.zip`
+   - `done.trg`
+
+
 ## Notes & Links
 
 - Terraform:
