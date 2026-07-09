@@ -1,5 +1,5 @@
 const fdk = require('@fnproject/fdk');
-const { loadStructuredFile, loadFormatFile, saveZippedOutputFiles, saveTriggerFile } = require('./src/services/files');
+const { loadStructuredFile, loadConfigFile, saveZippedOutputFiles, saveTriggerFile } = require('./src/services/files');
 const { applySplitting } = require('./src/services/splitting');
 
 const handler = async (event = {}) => {
@@ -11,25 +11,33 @@ const handler = async (event = {}) => {
     throw new Error('Object Storage event must include data.resourceName, data.additionalDetails.bucketName, and data.additionalDetails.namespace');
   }
 
-  // Output directory is objectName with "/in/" replaced by "/out/" and filename removed, e.g. "input/format1/data.csv" -> "output/format1/"
-  const outputDirectory = objectName.replace(/\/in\//, '/out/').replace(/\/[^\/]+$/, '/');
+  // Check that the objectName starts with "in/" and throw an error if it doesn't
+  if (!objectName.startsWith('in/')) {
+    throw new Error(`Object name must start with "in/", but got: ${objectName}`);
+  }
 
   console.log(`Processing file: ${objectName}`);
 
-  // Load the format file and structured input file from object storage based on the event data
-  const formatFile = await loadFormatFile(objectName, bucketName, namespaceName);
-  const structuredFile = await loadStructuredFile(objectName, bucketName, namespaceName, formatFile.structure);
+  // Output directory is objectName with "/in/" replaced by "/out/" and filename removed, e.g. "input/config1/data.csv" -> "output/config1/"
+  const outputDirectory = objectName.replace(/\/in\//, '/out/').replace(/\/[^\/]+$/, '/');
 
-  // Check that format file contains the correct entries (metadata, groupBy, header, line)
-  if (!formatFile || !formatFile.metadata || !formatFile.groupBy || !formatFile.header || !formatFile.line) {
-    throw new Error('Format file is missing required properties (metadata, groupBy, header, line)');
+  // Config path is objectName with "/in/" replaced by "/config/" and filename replaced, e.g. "input/config1/data.csv" -> "config/config1/config.yaml"
+  const configFilePath = objectName.replace(/\/in\//, '/config/').replace(/\/[^\/]+$/, '/config.yaml');
+
+  // Load the config file and structured input file from object storage based on the event data
+  const configFile = await loadConfigFile(configFilePath, bucketName, namespaceName);
+  const structuredFile = await loadStructuredFile(objectName, bucketName, namespaceName, configFile.structure);
+
+  // Check that config file contains the correct entries (metadata, groupBy, header, line)
+  if (!configFile || !configFile.metadata || !configFile.groupBy || !configFile.header || !configFile.line) {
+    throw new Error('Config file is missing required properties (metadata, groupBy, header, line)');
   }
 
-  // Apply the splitting logic to the structured input file using the loaded format definition
-  const { headers, lines } = await applySplitting(structuredFile, formatFile);
+  // Apply the splitting logic to the structured input file using the loaded config definition
+  const { headers, lines } = await applySplitting(structuredFile, configFile);
 
   // Reformat JSON values into header and line csv files and write to object storage
-  await saveZippedOutputFiles(outputDirectory, headers, lines, formatFile.metadata, bucketName, namespaceName);
+  await saveZippedOutputFiles(outputDirectory, headers, lines, configFile.metadata, bucketName, namespaceName);
   await saveTriggerFile(outputDirectory, bucketName, namespaceName);
 
   console.log(`Successfully processed file: ${objectName}`);

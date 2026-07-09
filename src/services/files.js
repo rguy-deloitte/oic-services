@@ -5,7 +5,7 @@ const JSZip = require('jszip');
 const XLSX = require('xlsx');
 const yaml = require('yaml');
 
-const FORMAT_SECTION_LAYOUTS = {
+const CONFIG_SECTION_LAYOUTS = {
     header: {
         fixedFields: [
             'TRANSACTION_NUMBER',
@@ -79,32 +79,22 @@ async function loadStructuredFile(filename, bucketName, namespaceName, structure
     }
 }
 
-// Loads a format file from object storage based on the path of the input file
-async function loadFormatFile(filename, bucketName, namespaceName) {
-    // Derive the format name from the input filename. Takes the folder name immediately preceding the file as the format
-    // e.g. "formats/format1.yaml" for "input/format1/data.csv".
-    const pathParts = filename.split(path.sep);
-    if (pathParts.length < 2) {
-        throw new Error(`Input filename must include at least one directory to determine format, got: ${filename}`);
-    }
-    const format = pathParts[pathParts.length - 2];
+// Loads a config file from object storage based on the path of the input file
+async function loadConfigFile(configFilePath, bucketName, namespaceName) {
+    const configContent = await loadFileFromObjectStorage(configFilePath, bucketName, namespaceName);
 
-    const formatFilePath = `fbdi-splitting/formats/${format}.yaml`;
-
-    const formatContent = await loadFileFromObjectStorage(formatFilePath, bucketName, namespaceName);
-
-    return normalizeFormatDefinition(yaml.parse(formatContent.content.toString('utf8')));
+    return normalizeConfigDefinition(yaml.parse(configContent.content.toString('utf8')));
 }
 
-function normalizeFormatDefinition(formatDefinition) {
-    if (!formatDefinition || typeof formatDefinition !== 'object' || Array.isArray(formatDefinition)) {
-        return formatDefinition;
+function normalizeConfigDefinition(configDefinition) {
+    if (!configDefinition || typeof configDefinition !== 'object' || Array.isArray(configDefinition)) {
+        return configDefinition;
     }
 
     return {
-        ...formatDefinition,
-        header: normalizeRecordLayout('header', formatDefinition.header),
-        line: normalizeRecordLayout('line', formatDefinition.line),
+        ...configDefinition,
+        header: normalizeRecordLayout('header', configDefinition.header),
+        line: normalizeRecordLayout('line', configDefinition.line),
     };
 }
 
@@ -113,7 +103,7 @@ function normalizeRecordLayout(recordType, fieldDefinitions) {
         return fieldDefinitions;
     }
 
-    const layout = FORMAT_SECTION_LAYOUTS[recordType];
+    const layout = CONFIG_SECTION_LAYOUTS[recordType];
 
     if (!layout) {
         return fieldDefinitions;
@@ -339,7 +329,7 @@ function buildStructuredFile(filename, rows) {
 }
 
 // Convert worksheet rows into the normalized structure expected by the splitting
-// layer. Depending on the format YAML, rows can either use positional C1..Cn
+// layer. Depending on the config YAML, rows can either use positional C1..Cn
 // keys or the first row's header values as property names.
 function mapRowsToColumns(matrix, structure) {
     const { headerRowPresent, ignoreHeaderRow } = normalizeWorksheetStructure(structure);
@@ -506,8 +496,8 @@ async function saveTriggerFile(outputDirectory, bucketName, namespaceName) {
 
 module.exports = {
     loadStructuredFile,
-    loadFormatFile,
-    normalizeFormatDefinition,
+    loadConfigFile: loadConfigFile,
+    normalizeConfigDefinition: normalizeConfigDefinition,
     saveZippedOutputFiles,
     saveTriggerFile,
 };
