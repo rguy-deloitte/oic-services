@@ -37,7 +37,7 @@ const handler = async (event = {}) => {
   const { headers, lines } = await applySplitting(structuredFile, configFile);
 
   // Reformat JSON values into header and line csv files and write to object storage
-  await saveZippedOutputFiles(outputDirectory, headers, lines, configFile.metadata, bucketName, namespaceName);
+  await saveZippedOutputFiles(outputDirectory, headers, lines, configFile.metadata, bucketName, namespaceName, objectName);
   await saveTriggerFile(outputDirectory, bucketName, namespaceName);
 
   console.log(`Successfully processed file: ${objectName}`);

@@ -118,7 +118,7 @@ out/supplier_invoice/
 Output objects:
 
 ```text
-out/supplier_invoice/XlaTransactionUpload.zip
+out/supplier_invoice/test_data_20260703150334.zip
 out/supplier_invoice/done.trg
 ```
 

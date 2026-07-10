@@ -449,7 +449,7 @@ async function uploadObjectToObjectStorage(objectName, content, contentType, buc
     });
 }
 
-async function saveZippedOutputFiles(outputDirectory, headers, lines, metadata, bucketName, namespaceName) {
+async function saveZippedOutputFiles(outputDirectory, headers, lines, metadata, bucketName, namespaceName, inputObjectName) {
     if (!outputDirectory) {
         throw new Error('outputDirectory is required');
     }
@@ -460,6 +460,10 @@ async function saveZippedOutputFiles(outputDirectory, headers, lines, metadata, 
 
     if (!metadata || !metadata.name || !metadata.version) {
         throw new Error('metadata with name and version is required to save output files');
+    }
+
+    if (!inputObjectName || typeof inputObjectName !== 'string') {
+        throw new Error('inputObjectName is required to compute the output zip filename');
     }
 
     const normalizedOutputDirectory = outputDirectory.endsWith('/') ? outputDirectory : `${outputDirectory}/`;
@@ -477,13 +481,21 @@ async function saveZippedOutputFiles(outputDirectory, headers, lines, metadata, 
         compression: 'DEFLATE',
     });
 
+    const zipFileName = buildTimestampedZipName(inputObjectName);
+
     await uploadObjectToObjectStorage(
-        `${normalizedOutputDirectory}XlaTransactionUpload.zip`,
+        `${normalizedOutputDirectory}${zipFileName}`,
         zipContent,
         'application/zip',
         bucketName,
         namespaceName,
     );
+}
+
+function buildTimestampedZipName(inputObjectName) {
+    const fileName = path.basename(inputObjectName, path.extname(inputObjectName));
+    const timestamp = dayjs().format('YYYYMMDDHHmmss');
+    return `${fileName}_${timestamp}.zip`;
 }
 
 async function saveTriggerFile(outputDirectory, bucketName, namespaceName) {
