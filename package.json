@@ -14,5 +14,8 @@
 		"oci-objectstorage": "^2.132.0",
 		"yaml": "^2.9.0",
 		"xlsx": "^0.18.5"
+	},
+	"overrides": {
+		"whatwg-url": "17.1.0"
 	}
 }

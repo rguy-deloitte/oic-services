@@ -496,8 +496,8 @@ async function saveTriggerFile(outputDirectory, bucketName, namespaceName) {
 
 module.exports = {
     loadStructuredFile,
-    loadConfigFile: loadConfigFile,
-    normalizeConfigDefinition: normalizeConfigDefinition,
+    loadConfigFile,
+    normalizeConfigDefinition,
     saveZippedOutputFiles,
     saveTriggerFile,
 };

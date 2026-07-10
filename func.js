@@ -17,12 +17,12 @@ const handler = async (event = {}) => {
   }
 
   console.log(`Processing file: ${objectName}`);
+  
+  // Output directory is objectName with "in/" replaced by "out/" and filename removed, e.g. "in/config1/data.csv" -> "out/config1/"
+  const outputDirectory = objectName.replace(/^in\//, 'out/').replace(/\/[^\/]+$/, '/');
 
-  // Output directory is objectName with "/in/" replaced by "/out/" and filename removed, e.g. "input/config1/data.csv" -> "output/config1/"
-  const outputDirectory = objectName.replace(/\/in\//, '/out/').replace(/\/[^\/]+$/, '/');
-
-  // Config path is objectName with "/in/" replaced by "/config/" and filename replaced, e.g. "input/config1/data.csv" -> "config/config1/config.yaml"
-  const configFilePath = objectName.replace(/\/in\//, '/config/').replace(/\/[^\/]+$/, '/config.yaml');
+  // Config path is objectName with "in/" replaced by "config/" and filename replaced, e.g. "in/config1/data.csv" -> "config/config1/config.yaml"
+  const configFilePath = objectName.replace(/^in\//, 'config/').replace(/\/[^\/]+$/, '/config.yaml');
 
   // Load the config file and structured input file from object storage based on the event data
   const configFile = await loadConfigFile(configFilePath, bucketName, namespaceName);
