@@ -1,4 +1,9 @@
 variable "compartment_id" {
+  description = "OCID from your compartment page"
+  type        = string
+}
+
+variable "tenancy_ocid" {
   description = "OCID from your tenancy page"
   type        = string
 }
@@ -14,12 +19,7 @@ variable "logging_group_id" {
   type        = string
 }
 
-variable "image_path" {
-  description = "Path to the function image in OCI registry"
+variable "row_splitter_image_path" {
+  description = "Path to the row-splitter function image in OCI registry"
   type        = string
 }
-
-# variable "tenancy_ocid" {
-#   description = "OCID from your tenancy page"
-#   type        = string
-# }
