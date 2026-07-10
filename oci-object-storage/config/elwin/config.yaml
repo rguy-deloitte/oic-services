@@ -1,0 +1,118 @@
+groups:
+  transaction:
+    groupBy:
+      - C6
+      - C7
+    key:
+      prefix: LCKTRELW
+      start: 10000000002000
+    count:
+      prefix: ''
+      start: 1
+
+structure:
+  headerRowPresent: true
+  ignoreHeaderRow: true
+
+files:
+  XlaTrxH.csv:
+    group: transaction
+    mode: group
+
+    TRANSACTION_NUMBER:
+      fromGroup: transaction.key
+    EVENT_TYPE_CODE:
+      value: JOURNAL_BALANCES
+    LEDGER_NAME:
+      value: TR ACTUALS USD Apr
+    TRANSACTION_DATE:
+      from: C6
+      transform: ddmmyyyy_to_yyyymmdd
+
+    repeat:
+      - prefix: Character
+        start: 1
+        end: 50
+        fields:
+          EVENT_TYPE:
+            value: LCKTRBALANCE
+          REVERSAL_FLAG:
+            value: N
+          SOURCE_SYSTEM_NAME:
+            value: Elwin TB
+          SOURCE_SYSTEM_FILE_NAME:
+            fromRoot: basename
+
+      - prefix: Number
+        end: 10
+
+      - prefix: Date
+        end: 10
+
+      - prefix: Long Character
+        start: 1
+        end: 5
+        fields:
+          DETAIL:
+            from: C9
+
+  XlaTrxL.csv:
+    group: transaction
+    mode: row
+
+    TRANSACTION_NUMBER:
+      fromGroup: transaction.key
+    LINE_NUMBER:
+      fromGroup: transaction.count
+
+    repeat:
+      - prefix: Character
+        start: 1
+        end: 100
+        fields:
+          DEFAULT_CURRENCY:
+            from: C14
+          COST_CENTRE_CODE:
+            from: C1
+          COST_CENTRE_NAME:
+            from: C2
+          TYPE:
+            from: C8
+          ACCOUNT_NAME:
+            from: C4
+
+      - prefix: Number
+        start: 1
+        end: 30
+        fields:
+          DEFAULT_AMOUNT:
+            expr: number(C16) - number(C17)
+            format: currency
+          LINE_NO: ''
+          LOCAL_ACCOUNT_CODE:
+            from: C3
+          ENTITY:
+            value: '263200'
+          VOUCHER_NUMBER:
+            from: C7
+          ACCOUNTED_AMOUNT:
+            expr: number(C10) - number(C11)
+            format: currency
+          ACCOUNT_CODE:
+            from: C3
+      - prefix: Date
+        start: 1
+        end: 10
+        fields:
+          VOUCHER_DATE:
+            from: C6
+            transform: ddmmyyyy_to_yyyymmdd
+      - prefix: Long Character
+        start: 1
+        end: 5
+
+  Metadata_LOCKTON_TR_ELW.txt:
+    format: txt
+    content: |
+      Metadata version number : 3
+      Application Short Name : LOCKTON_TR_ELW
