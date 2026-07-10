@@ -5,37 +5,8 @@ const JSZip = require('jszip');
 const XLSX = require('xlsx');
 const yaml = require('yaml');
 
-const CONFIG_SECTION_LAYOUTS = {
-    header: {
-        fixedFields: [
-            'TRANSACTION_NUMBER',
-            'EVENT_TYPE_CODE',
-            'LEDGER_NAME',
-            'TRANSACTION_DATE',
-        ],
-        typedSections: [
-            { sectionName: 'Characters', defaultSize: 50 },
-            { sectionName: 'Numbers', defaultSize: 10 },
-            { sectionName: 'Dates', defaultSize: 10 },
-            { sectionName: 'Long Characters', defaultSize: 5 },
-        ],
-    },
-    line: {
-        fixedFields: [
-            'TRANSACTION_NUMBER',
-            'LINE_NUMBER',
-        ],
-        typedSections: [
-            { sectionName: 'Characters', defaultSize: 100 },
-            { sectionName: 'Numbers', defaultSize: 30 },
-            { sectionName: 'Dates', defaultSize: 10 },
-            { sectionName: 'Long Characters', defaultSize: 5 },
-        ],
-    },
-};
-
 // Reuse a single OCI Object Storage client across invocations within the same
-// function container. Caching the client avoids rebuilding the resource principal 
+// function container. Caching the client avoids rebuilding the resource principal
 // provider for every file read/write
 let objectStorageClientPromise;
 
@@ -103,82 +74,108 @@ function normalizeRecordLayout(recordType, fieldDefinitions) {
         return fieldDefinitions;
     }
 
-    const layout = CONFIG_SECTION_LAYOUTS[recordType];
-
-    if (!layout) {
-        return fieldDefinitions;
-    }
-
-    const typedSectionNames = layout.typedSections.map((section) => section.sectionName);
-    const allowedTopLevelFields = new Set([...layout.fixedFields, ...typedSectionNames]);
-    const unexpectedFields = Object.keys(fieldDefinitions).filter((fieldName) => !allowedTopLevelFields.has(fieldName));
-
-    if (unexpectedFields.length > 0) {
-        throw new Error(
-            `${recordType} must only contain fixed fields plus section blocks. Unsupported top-level fields: ${unexpectedFields.join(', ')}`,
-        );
-    }
-
     const normalizedFields = {};
+    const repeatKey = getRepeatKey(fieldDefinitions);
 
-    for (const fixedField of layout.fixedFields) {
-        normalizedFields[fixedField] = fieldDefinitions[fixedField] ?? '';
-    }
+    for (const [fieldName, fieldDefinition] of Object.entries(fieldDefinitions)) {
+        if (fieldName === repeatKey) {
+            if (!Array.isArray(fieldDefinition)) {
+                throw new Error(`${recordType}.${repeatKey} must be an array`);
+            }
 
-    for (const sectionLayout of layout.typedSections) {
-        Object.assign(
-            normalizedFields,
-            expandTypedSection(recordType, sectionLayout, fieldDefinitions[sectionLayout.sectionName]),
-        );
+            for (const [sectionIndex, repeatDefinition] of fieldDefinition.entries()) {
+                Object.assign(normalizedFields, expandRepeatSection(recordType, repeatKey, sectionIndex, repeatDefinition));
+            }
+
+            continue;
+        }
+
+        normalizedFields[fieldName] = fieldDefinition;
     }
 
     return normalizedFields;
 }
 
-function expandTypedSection(recordType, sectionLayout, sectionDefinition) {
-    const fieldPrefix = getFieldPrefix(sectionLayout.sectionName);
+function getRepeatKey(fieldDefinitions) {
+    const supportedKeys = ['repeat', 'repeating'];
+    const foundKeys = supportedKeys.filter((key) => Object.prototype.hasOwnProperty.call(fieldDefinitions, key));
 
-    if (sectionDefinition === undefined) {
-        return buildDefaultTypedFields(fieldPrefix, sectionLayout.defaultSize, 1);
+    if (foundKeys.length > 1) {
+        throw new Error('Only one repeating section key is allowed: repeat or repeating');
     }
 
+    return foundKeys[0] ?? null;
+}
+
+function expandRepeatSection(recordType, repeatKey, sectionIndex, sectionDefinition) {
     if (!sectionDefinition || typeof sectionDefinition !== 'object' || Array.isArray(sectionDefinition)) {
-        throw new Error(`${recordType}.${sectionLayout.sectionName} must be an object`);
+        throw new Error(`${recordType}.${repeatKey}[${sectionIndex}] must be an object`);
     }
 
-    const requestedSize = sectionDefinition.size;
-    const size = requestedSize === undefined ? sectionLayout.defaultSize : Number(requestedSize);
+    const prefix = sectionDefinition.prefix;
+    if (!prefix || typeof prefix !== 'string') {
+        throw new Error(`${recordType}.${repeatKey}[${sectionIndex}].prefix is required and must be a string`);
+    }
+
+    const start = sectionDefinition.start === undefined ? 1 : Number(sectionDefinition.start);
+    if (!Number.isInteger(start) || start < 1) {
+        throw new Error(`${recordType}.${repeatKey}[${sectionIndex}].start must be an integer >= 1`);
+    }
+
+    let size;
+    if (sectionDefinition.size !== undefined) {
+        size = Number(sectionDefinition.size);
+    }
+
+    if (sectionDefinition.end !== undefined) {
+        const end = Number(sectionDefinition.end);
+
+        if (!Number.isInteger(end) || end < start) {
+            throw new Error(`${recordType}.${repeatKey}[${sectionIndex}].end must be an integer >= start`);
+        }
+
+        if (size !== undefined && (!Number.isInteger(size) || size !== end - start + 1)) {
+            throw new Error(`${recordType}.${repeatKey}[${sectionIndex}] has conflicting size and end`);
+        }
+
+        size = end - start + 1;
+    }
+
+    if (size === undefined) {
+        throw new Error(`${recordType}.${repeatKey}[${sectionIndex}] must define size or end`);
+    }
 
     if (!Number.isInteger(size) || size < 0) {
-        throw new Error(`${recordType}.${sectionLayout.sectionName}.size must be a non-negative integer`);
+        throw new Error(`${recordType}.${repeatKey}[${sectionIndex}].size must be a non-negative integer`);
     }
 
-    const namedFields = Object.entries(sectionDefinition).filter(([fieldName]) => fieldName !== 'size');
+    const sectionFields = sectionDefinition.fields ?? {};
+    if (!sectionFields || typeof sectionFields !== 'object' || Array.isArray(sectionFields)) {
+        throw new Error(`${recordType}.${repeatKey}[${sectionIndex}].fields must be an object`);
+    }
 
+    const namedFields = Object.entries(sectionFields);
     if (namedFields.length > size) {
         throw new Error(
-            `${recordType}.${sectionLayout.sectionName} defines ${namedFields.length} fields, which exceeds the configured size of ${size}`,
+            `${recordType}.${repeatKey}[${sectionIndex}] defines ${namedFields.length} fields, which exceeds the configured size of ${size}`,
         );
     }
 
     const expandedSection = Object.fromEntries(namedFields);
-    const nextGenericIndex = namedFields.length + 1;
+    const nextGenericIndex = start + namedFields.length;
 
     return {
         ...expandedSection,
-        ...buildDefaultTypedFields(fieldPrefix, size, nextGenericIndex),
+        ...buildDefaultRepeatingFields(prefix, start, size, nextGenericIndex),
     };
 }
 
-function getFieldPrefix(sectionName) {
-    return sectionName.endsWith('s') ? sectionName.slice(0, -1) : sectionName;
-}
-
-function buildDefaultTypedFields(fieldPrefix, size, startIndex) {
+function buildDefaultRepeatingFields(prefix, start, size, nextIndex) {
     const defaultFields = {};
+    const endIndex = start + size - 1;
 
-    for (let index = startIndex; index <= size; index += 1) {
-        defaultFields[`${fieldPrefix}${index}`] = '';
+    for (let index = nextIndex; index <= endIndex; index += 1) {
+        defaultFields[`${prefix}${index}`] = '';
     }
 
     return defaultFields;

@@ -3,7 +3,7 @@ groupBy:
   - C7
 
 metadata:
-  name: TEST_PROCESS
+  name: TEST
   version: 3
 
 structure:
@@ -14,29 +14,46 @@ header:
   TRANSACTION_NUMBER:
     sequence:
       type: transaction
-      prefix: TESTPROCESS
-      start: 10000000000000
+      prefix: TEST
+      start: 10000000002000
   EVENT_TYPE_CODE:
-    value: EVENT_TYPE
+    value: JOURNAL_BALANCES
   LEDGER_NAME:
-    value: Ledger Name
+    value: Ledge Name
   TRANSACTION_DATE:
     from: C6
     transform: ddmmyyyy_to_yyyymmdd
 
-  Characters:
-    EVENT_TYPE:
-      value: LCKTRBALANCE
-    REVERSAL_FLAG:
-      value: N
-    SOURCE_SYSTEM_NAME:
-      value: TEST TB
-    SOURCE_SYSTEM_FILE_NAME:
-      fromRoot: basename
+  repeat:
+    - prefix: 'Character'
+      start: 1
+      end: 50
+      fields:
+        EVENT_TYPE:
+          value: BALANCE
+        REVERSAL_FLAG:
+          value: N
+        SOURCE_SYSTEM_NAME:
+          value: TEST TB
+        SOURCE_SYSTEM_FILE_NAME:
+          fromRoot: basename
 
-  Long Characters:
-    DETAIL:
-      from: C9
+    - prefix: 'Number'
+      start: 1
+      end: 10
+
+    - prefix: 'Date'
+      start: 1
+      end: 10
+      
+    - prefix: 'Long Character'
+      start: 1
+      end: 5
+      fields:
+        DETAIL:
+          from: C9
+
+    
 
 line:
   TRANSACTION_NUMBER:
@@ -45,36 +62,50 @@ line:
     sequence:
       type: line
 
-  Characters:
-    DEFAULT_CURRENCY:
-      from: C14
-    COST_CENTRE_CODE:
-      from: C1
-    COST_CENTRE_NAME:
-      from: C2
-    TYPE:
-      from: C8
-    ACCOUNT_NAME:
-      from: C4
+  repeat:
+    - prefix: 'Character'
+      start: 1
+      end: 100
+      fields:
+        DEFAULT_CURRENCY:
+          from: C14
+        COST_CENTRE_CODE:
+          from: C1
+        COST_CENTRE_NAME:
+          from: C2
+        TYPE:
+          from: C8
+        ACCOUNT_NAME:
+          from: C4
 
-  Numbers:
-    DEFAULT_AMOUNT:
-        expr: number(C16) - number(C17)
-        format: currency
-    LINE_NO: ''
-    LOCAL_ACCOUNT_CODE:
-      from: C3  
-    ENTITY:
-      value: '263200'  
-    VOUCHER_NUMBER:
-      from: C7  
-    ACCOUNTED_AMOUNT:
-      expr: number(C10) - number(C11)
-      format: currency  
-    ACCOUNT_CODE:
-      from: C3  
-  
-  Dates:
-    VOUCHER_DATE:
-      from: C6
-      transform: ddmmyyyy_to_yyyymmdd
+    - prefix: 'Number'
+      start: 1
+      end: 30
+      fields:
+        DEFAULT_AMOUNT:
+          expr: number(C16) - number(C17)
+          format: currency
+        LINE_NO: ''
+        LOCAL_ACCOUNT_CODE:
+          from: C3
+        ENTITY:
+          value: '123456'
+        VOUCHER_NUMBER:
+          from: C7
+        ACCOUNTED_AMOUNT:
+          expr: number(C10) - number(C11)
+          format: currency
+        ACCOUNT_CODE:
+          from: C3
+
+    - prefix: 'Date'
+      start: 1
+      end: 10
+      fields:
+        VOUCHER_DATE:
+          from: C6
+          transform: ddmmyyyy_to_yyyymmdd
+
+    - prefix: 'Long Character'
+      start: 1
+      end: 5

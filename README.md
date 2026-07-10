@@ -135,7 +135,7 @@ Example metadata:
 
 ```yaml
 metadata:
-  name: LOCKTON_TR_ELW
+  name: TEST_PROCESS
   version: 3
 ```
 
@@ -143,36 +143,9 @@ metadata:
 
 See [examples/config.example.yaml](examples/config.example.yaml) for a complete example.
 
-`header` and `line` must use section blocks.
+`header` and `line` support explicit fields plus repeating field ranges.
 
-Default `header` layout order:
-
-- `TRANSACTION_NUMBER`
-- `EVENT_TYPE_CODE`
-- `LEDGER_NAME`
-- `TRANSACTION_DATE`
-- `Character1` to `Character50`
-- `Number1` to `Number10`
-- `Date1` to `Date10`
-- `Long Character1` to `Long Character5`
-
-Default `line` layout order:
-
-- `TRANSACTION_NUMBER`
-- `LINE_NUMBER`
-- `Character1` to `Character100`
-- `Number1` to `Number30`
-- `Date1` to `Date10`
-- `Long Character1` to `Long Character5`
-
-Section blocks:
-
-- `Characters`
-- `Numbers`
-- `Dates`
-- `Long Characters`
-
-Each named field in a section block replaces the next consecutive field of that type. Remaining fields are filled with empty generic names.
+A repeating block uses a `prefix`, a starting index, and either `end` or `size`. Named fields inside the block replace the first generated positions, and the remaining positions are filled with generic values.
 
 Example:
 
@@ -181,8 +154,8 @@ header:
   TRANSACTION_NUMBER:
     sequence:
       type: transaction
-      prefix: LCKTRELW
-      start: 10000000001000
+      prefix: TEST
+      start: 10000000000000
   EVENT_TYPE_CODE:
     value: JOURNAL_BALANCES
   LEDGER_NAME:
@@ -190,19 +163,44 @@ header:
   TRANSACTION_DATE:
     from: C6
     transform: ddmmyyyy_to_yyyymmdd
-  Characters:
-    EVENT_TYPE:
-      value: LCKTRBALANCE
-    REVERSAL_FLAG:
-      value: N
-  Long Characters:
-    DETAIL:
-      from: C9
+
+  repeat:
+    - prefix: Character
+      start: 1
+      end: 50
+      fields:
+        EVENT_TYPE:
+          value: BALANCE
+        REVERSAL_FLAG:
+          value: N
+        SOURCE_SYSTEM_NAME:
+          value: TEST TB
+        SOURCE_SYSTEM_FILE_NAME:
+          fromRoot: basename
+
+    - prefix: Long Character
+      start: 1
+      end: 5
+      fields:
+        DETAIL:
+          from: C9
 ```
 
-The example above expands to `EVENT_TYPE`, `REVERSAL_FLAG`, `Character3` through `Character50`, `Number1` through `Number10`, `Date1` through `Date10`, and `DETAIL`, `Long Character2` through `Long Character5`.
+The example above expands to:
 
-Optional size overrides can be set inside a section block:
+- `TRANSACTION_NUMBER`
+- `EVENT_TYPE_CODE`
+- `LEDGER_NAME`
+- `TRANSACTION_DATE`
+- `EVENT_TYPE`
+- `REVERSAL_FLAG`
+- `SOURCE_SYSTEM_NAME`
+- `SOURCE_SYSTEM_FILE_NAME`
+- `Character4` through `Character50`
+- `DETAIL`
+- `Long Character2` through `Long Character5`
+
+Repeat blocks can also be used in `line`:
 
 ```yaml
 line:
@@ -211,14 +209,51 @@ line:
   LINE_NUMBER:
     sequence:
       type: line
-  Numbers:
-    size: 12
-    DEFAULT_AMOUNT:
-      expr: number(C16) - number(C17)
-      format: currency
+
+  repeat:
+    - prefix: Character
+      start: 1
+      end: 100
+      fields:
+        DEFAULT_CURRENCY:
+          from: C14
+        COST_CENTRE_CODE:
+          from: C1
+        COST_CENTRE_NAME:
+          from: C2
+        TYPE:
+          from: C8
+        ACCOUNT_NAME:
+          from: C4
+    - prefix: Number
+      start: 1
+      end: 30
+      fields:
+        DEFAULT_AMOUNT:
+          expr: number(C16) - number(C17)
+          format: currency
+        LINE_NO: ''
+        LOCAL_ACCOUNT_CODE:
+          from: C3
+        ENTITY:
+          value: '263200'
+        VOUCHER_NUMBER:
+          from: C7
+        ACCOUNTED_AMOUNT:
+          expr: number(C10) - number(C11)
+          format: currency
+        ACCOUNT_CODE:
+          from: C3
+    - prefix: Date
+      start: 1
+      end: 10
+      fields:
+        VOUCHER_DATE:
+          from: C6
+          transform: ddmmyyyy_to_yyyymmdd
 ```
 
-All non-fixed fields in `header` and `line` must be declared inside `Characters`, `Numbers`, `Dates`, or `Long Characters`.
+The repeating block key may be `repeat` or `repeating`.
 
 ### Structure Options
 
