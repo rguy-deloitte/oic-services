@@ -35,8 +35,8 @@ image_path          = "<docker image path> (see below)"
 
 ``` shell
 docker login lhr.ocir.io
-docker build --platform=linux/amd64 -t lhr.ocir.io/[repositoryNamespace]/ftp-bridge:0.1.0 .
-docker push lhr.ocir.io/[repositoryNamespace]/ftp-bridge:0.1.0
+docker build --platform=linux/amd64 -t lhr.ocir.io/[repositoryNamespace]/row-splitter:0.1.0 .
+docker push lhr.ocir.io/[repositoryNamespace]/row-splitter:0.1.0
 ```
 
 (you may want to move the docker image to correct compartment if this is your first time pushing) <br>
@@ -58,7 +58,7 @@ This function is triggered by an OCI Object Storage `Create Object` event.
 
 For each input file, it:
 
-1. Loads the matching format YAML from Object Storage.
+1. Loads the matching config YAML from Object Storage.
 2. Loads and parses the input file.
 3. Applies the splitting rules.
 4. Uploads `XlaTransactionUpload.zip` to the output prefix.
@@ -71,98 +71,60 @@ For each input file, it:
 - `.xlsx`
 - `.json`
 
-### Required OCI Setup
-
-#### Enable bucket object events
-
-In the target Object Storage bucket, enable `Emit object events`.
-
-#### Create an Events rule
-
-Create an Events rule for Object Storage `Create Object` events and set the action to this function.
-
-Example condition:
-
-```json
-{
-  "eventType": "com.oraclecloud.objectstorage.createobject",
-  "data": {
-    "additionalDetails": {
-      "bucketName": "<bucket-name>"
-    },
-    "resourceName": "fbdi-splitting/in/*"
-  }
-}
-```
-
-#### Grant the function access to Object Storage
-
-Example dynamic group rule:
-
-```text
-ALL {resource.type = 'fnfunc', resource.compartment.id = '<function-compartment-ocid>'}
-```
-
-Example policy:
-
-```text
-allow dynamic-group <dynamic-group-name> to manage objects in compartment <bucket-compartment-name> where all {target.bucket.name='<bucket-name>'}
-```
-
 ### Object Naming Conventions
 
 #### Input file path
 
-Input files must be stored under a path containing `/in/`.
+Input files must be stored under a path beginning with `in/`.
 
 Example:
 
 ```text
-fbdi-splitting/in/test-format/test_data.csv
+in/supplier_invoice/test_data.csv
 ```
 
-#### Format YAML path
+#### Config YAML path
 
-The format name is taken from the input file's parent directory.
+The config name is taken from the input file's parent directory.
 
 Example input:
 
 ```text
-fbdi-splitting/in/test-format/test_data.csv
+in/supplier_invoice/test_data.csv
 ```
 
-Expected format YAML:
+Expected config YAML:
 
 ```text
-fbdi-splitting/formats/test-format.yaml
+config/supplier_invoice/config.yaml
 ```
 
 #### Output path
 
-The output prefix is created by replacing `/in/` with `/out/` and removing the input filename.
+The output prefix is created by replacing `in/` with `out/` and removing the input filename.
 
 Example input:
 
 ```text
-fbdi-splitting/in/test-format/test_data.csv
+in/supplier_invoice/test_data.csv
 ```
 
 Output prefix:
 
 ```text
-fbdi-splitting/out/test-format/
+out/supplier_invoice/
 ```
 
 Output objects:
 
 ```text
-fbdi-splitting/out/test-format/XlaTransactionUpload.zip
-fbdi-splitting/out/test-format/done.trg
+out/supplier_invoice/XlaTransactionUpload.zip
+out/supplier_invoice/done.trg
 ```
 
-## Format YAML Requirements
+## Config YAML Requirements
 
-The format YAML must contain:
+The config YAML must contain:
 
 - `metadata`
 - `groupBy`
@@ -179,7 +141,7 @@ metadata:
 
 ### Output Layouts
 
-See [examples/format.example.yaml](examples/format.example.yaml) for a complete example.
+See [examples/config.example.yaml](examples/config.example.yaml) for a complete example.
 
 `header` and `line` must use section blocks.
 
@@ -348,11 +310,11 @@ To view them:
 
 ### Test Flow
 
-1. Deploy the function.
-2. Enable bucket object events.
-3. Create the Events rule.
-4. Upload an input file to the configured input prefix.
-5. Viewing function logs in OCI Logging
+1. Build the docker image.
+2. Push the docker image.
+3. Apply the terrform.
+4. Upload a config file to config/{filetype}/config.yaml
+5. Upload an input file to in/{filetype}/ .
 6. Confirm that the output prefix contains:
    - `XlaTransactionUpload.zip`
    - `done.trg`

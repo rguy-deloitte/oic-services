@@ -1,0 +1,80 @@
+groupBy:
+  - C6
+  - C7
+
+metadata:
+  name: TEST_PROCESS
+  version: 3
+
+structure:
+  headerRowPresent: true
+  ignoreHeaderRow: true
+  
+header:
+  TRANSACTION_NUMBER:
+    sequence:
+      type: transaction
+      prefix: TESTPROCESS
+      start: 10000000000000
+  EVENT_TYPE_CODE:
+    value: EVENT_TYPE
+  LEDGER_NAME:
+    value: Ledger Name
+  TRANSACTION_DATE:
+    from: C6
+    transform: ddmmyyyy_to_yyyymmdd
+
+  Characters:
+    EVENT_TYPE:
+      value: LCKTRBALANCE
+    REVERSAL_FLAG:
+      value: N
+    SOURCE_SYSTEM_NAME:
+      value: TEST TB
+    SOURCE_SYSTEM_FILE_NAME:
+      fromRoot: basename
+
+  Long Characters:
+    DETAIL:
+      from: C9
+
+line:
+  TRANSACTION_NUMBER:
+    fromGroup: TRANSACTION_NUMBER
+  LINE_NUMBER:
+    sequence:
+      type: line
+
+  Characters:
+    DEFAULT_CURRENCY:
+      from: C14
+    COST_CENTRE_CODE:
+      from: C1
+    COST_CENTRE_NAME:
+      from: C2
+    TYPE:
+      from: C8
+    ACCOUNT_NAME:
+      from: C4
+
+  Numbers:
+    DEFAULT_AMOUNT:
+        expr: number(C16) - number(C17)
+        format: currency
+    LINE_NO: ''
+    LOCAL_ACCOUNT_CODE:
+      from: C3  
+    ENTITY:
+      value: '263200'  
+    VOUCHER_NUMBER:
+      from: C7  
+    ACCOUNTED_AMOUNT:
+      expr: number(C10) - number(C11)
+      format: currency  
+    ACCOUNT_CODE:
+      from: C3  
+  
+  Dates:
+    VOUCHER_DATE:
+      from: C6
+      transform: ddmmyyyy_to_yyyymmdd
