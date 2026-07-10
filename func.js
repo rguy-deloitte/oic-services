@@ -28,9 +28,9 @@ const handler = async (event = {}) => {
   const configFile = await loadConfigFile(configFilePath, bucketName, namespaceName);
   const structuredFile = await loadStructuredFile(objectName, bucketName, namespaceName, configFile.structure);
 
-  // Check that config file contains the correct entries (metadata, groupBy, header, line)
-  if (!configFile || !configFile.metadata || !configFile.groupBy || !configFile.header || !configFile.line) {
-    throw new Error('Config file is missing required properties (metadata, groupBy, header, line)');
+  // Check that config file contains the correct entries.
+  if (!configFile || !configFile.metadata || !configFile.groups || !configFile.header || !configFile.line) {
+    throw new Error('Config file is missing required properties (metadata, groups, header, line)');
   }
 
   // Apply the splitting logic to the structured input file using the loaded config definition

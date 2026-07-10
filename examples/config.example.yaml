@@ -1,9 +1,17 @@
-groupBy:
-  - C6
-  - C7
+groups:
+  transaction:
+    groupBy:
+      - C6
+      - C7
+    key:
+      prefix: TEST
+      start: 10000000002000
+    count:
+      prefix: ''
+      start: 1
 
 metadata:
-  name: TEST
+  name: TEST_TR_ELW
   version: 3
 
 structure:
@@ -11,21 +19,21 @@ structure:
   ignoreHeaderRow: true
   
 header:
+  group: transaction
+  mode: group
+
   TRANSACTION_NUMBER:
-    sequence:
-      type: transaction
-      prefix: TEST
-      start: 10000000002000
+    fromGroup: transaction.key
   EVENT_TYPE_CODE:
     value: JOURNAL_BALANCES
   LEDGER_NAME:
-    value: Ledge Name
+    value: TEST
   TRANSACTION_DATE:
     from: C6
     transform: ddmmyyyy_to_yyyymmdd
 
   repeat:
-    - prefix: 'Character'
+    - prefix: Character
       start: 1
       end: 50
       fields:
@@ -34,36 +42,28 @@ header:
         REVERSAL_FLAG:
           value: N
         SOURCE_SYSTEM_NAME:
-          value: TEST TB
+          value: Elwin TB
         SOURCE_SYSTEM_FILE_NAME:
           fromRoot: basename
 
-    - prefix: 'Number'
-      start: 1
-      end: 10
-
-    - prefix: 'Date'
-      start: 1
-      end: 10
-      
-    - prefix: 'Long Character'
+    - prefix: Long Character
       start: 1
       end: 5
       fields:
         DETAIL:
           from: C9
 
-    
-
 line:
+  group: transaction
+  mode: row
+
   TRANSACTION_NUMBER:
-    fromGroup: TRANSACTION_NUMBER
+    fromGroup: transaction.key
   LINE_NUMBER:
-    sequence:
-      type: line
+    fromGroup: transaction.count
 
   repeat:
-    - prefix: 'Character'
+    - prefix: Character
       start: 1
       end: 100
       fields:
@@ -77,8 +77,7 @@ line:
           from: C8
         ACCOUNT_NAME:
           from: C4
-
-    - prefix: 'Number'
+    - prefix: Number
       start: 1
       end: 30
       fields:
@@ -89,7 +88,7 @@ line:
         LOCAL_ACCOUNT_CODE:
           from: C3
         ENTITY:
-          value: '123456'
+          value: '263200'
         VOUCHER_NUMBER:
           from: C7
         ACCOUNTED_AMOUNT:
@@ -97,15 +96,10 @@ line:
           format: currency
         ACCOUNT_CODE:
           from: C3
-
-    - prefix: 'Date'
+    - prefix: Date
       start: 1
       end: 10
       fields:
         VOUCHER_DATE:
           from: C6
           transform: ddmmyyyy_to_yyyymmdd
-
-    - prefix: 'Long Character'
-      start: 1
-      end: 5

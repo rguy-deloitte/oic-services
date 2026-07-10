@@ -67,53 +67,74 @@ function createExpressionEngine() {
 
 // Apply the provided splitting definition to the input data, producing header and line records for output.
 async function applySplitting(inputData, splitDefinition) {
-    // Group the incoming rows based on the groupBy keys specified in the split definition. 
-    // The groupBy keys are used to determine which rows belong together in the same header file
-	const groups = groupRows(inputData.rows || [], splitDefinition.groupBy || []);
-	let headers = [];
-	let lines = [];
+    const rows = inputData.rows || [];
+    const groupBridge = buildGroupDefinitions(rows, splitDefinition);
 
-	for (const [groupIndex, group] of groups.entries()) {
-        // Build one header for each group
-		const groupContext = {group, groupIndex, header: {}};
-		const headerRecord = await buildHeaderRecord(inputData, splitDefinition, groupContext);
-
-		headers.push(headerRecord);
-		groupContext.header = headerRecord;
-
-        // Then build one line for each row in the group
-		const lineRecords = await buildLineRecords(inputData, splitDefinition, groupContext);
-		lines.push(...lineRecords);
-	}
-
-	return {
-		headers,
-		lines
-	};
+    return {
+        headers: await buildOutputRecords('header', splitDefinition.header, groupBridge, inputData),
+        lines: await buildOutputRecords('line', splitDefinition.line, groupBridge, inputData),
+    };
 }
 
-async function buildHeaderRecord(inputData, splitDefinition, groupContext) {
-	const firstRow = groupContext.group.rows[0] || {};
+async function buildOutputRecords(recordType, sectionDefinition, groupBridge, inputData) {
+    if (!sectionDefinition) {
+        return [];
+    }
 
-	return buildSplitObject(
-		splitDefinition.header || {},
-		createSplittingContext(inputData, firstRow, groupContext, null)
-	);
+    if (typeof sectionDefinition !== 'object' || Array.isArray(sectionDefinition)) {
+        throw new Error(`${recordType} must be an object`);
+    }
+
+    const groupName = sectionDefinition.group ?? groupBridge.primaryGroupName;
+    const mode = sectionDefinition.mode ?? getDefaultOutputMode(recordType);
+    const groupState = groupBridge.groupStates[groupName];
+
+    if (!groupState) {
+        throw new Error(`${recordType}.group must reference one of the configured groups: ${Object.keys(groupBridge.groupStates).join(', ')}`);
+    }
+
+    const fieldDefinitions = { ...sectionDefinition };
+    delete fieldDefinitions.group;
+    delete fieldDefinitions.mode;
+
+    const records = [];
+
+    for (const [groupIndex, group] of groupState.groups.entries()) {
+        const groupContext = {
+            group,
+            groupIndex,
+            header: {},
+            groupStates: groupBridge.groupStates,
+            primaryGroupName: groupBridge.primaryGroupName,
+        };
+
+        if (mode === 'group') {
+            const firstRow = group.rows[0] || {};
+            const outputRecord = await buildSplitObject(
+                fieldDefinitions,
+                createSplittingContext(inputData, firstRow, groupContext, null)
+            );
+
+            records.push(outputRecord);
+        } else if (mode === 'row') {
+            for (const [lineIndex, row] of group.rows.entries()) {
+                const outputRecord = await buildSplitObject(
+                    fieldDefinitions,
+                    createSplittingContext(inputData, row, groupContext, lineIndex)
+                );
+
+                records.push(outputRecord);
+            }
+        } else {
+            throw new Error(`${recordType}.mode must be either 'group' or 'row'`);
+        }
+    }
+
+    return records;
 }
 
-async function buildLineRecords(inputData, splitDefinition, groupContext) {
-	const lineRecords = [];
-
-	for (const [lineIndex, row] of groupContext.group.rows.entries()) {
-		const lineRecord = await buildSplitObject(
-			splitDefinition.line || {},
-			createSplittingContext(inputData, row, groupContext, lineIndex)
-		);
-
-		lineRecords.push(lineRecord);
-	}
-
-	return lineRecords;
+function getDefaultOutputMode(recordType) {
+    return recordType === 'line' ? 'row' : 'group';
 }
 
 function createSplittingContext(root, row, groupContext, lineIndex) {
@@ -169,7 +190,7 @@ async function resolveSourceValue(fieldDefinition, context) {
 	}
 
 	if (fieldDefinition.fromGroup) {
-		return context.groupContext.header?.[fieldDefinition.fromGroup] ?? '';
+		return resolveGroupValue(fieldDefinition.fromGroup, context);
 	}
 
 	if (fieldDefinition.sequence) {
@@ -280,6 +301,149 @@ function buildExpressionContext(context) {
 		header: context.groupContext.header,
 		lineNumber: context.lineIndex === null ? null : context.lineIndex + 1
 	};
+}
+
+function buildGroupDefinitions(rows, splitDefinition) {
+	const groupsConfig = splitDefinition.groups;
+
+	if (!groupsConfig) {
+		throw new Error('groups must be defined');
+	}
+
+	if (typeof groupsConfig !== 'object' || Array.isArray(groupsConfig)) {
+		throw new Error('groups must be an object');
+	}
+
+	const groupNames = Object.keys(groupsConfig);
+	if (groupNames.length === 0) {
+		throw new Error('groups must define at least one group');
+	}
+
+	const primaryGroupName = determinePrimaryGroupName(splitDefinition, groupNames);
+	const groupStates = {};
+
+	for (const groupName of groupNames) {
+		const groupDefinition = groupsConfig[groupName];
+
+		if (!groupDefinition || typeof groupDefinition !== 'object' || Array.isArray(groupDefinition)) {
+			throw new Error(`groups.${groupName} must be an object`);
+		}
+
+		if (!Array.isArray(groupDefinition.groupBy)) {
+			throw new Error(`groups.${groupName}.groupBy must be an array`);
+		}
+
+		const keyConfig = normalizeGroupSequenceConfig(groupDefinition.key, `groups.${groupName}.key`);
+		const countConfig = normalizeGroupSequenceConfig(groupDefinition.count, `groups.${groupName}.count`);
+
+		const groups = groupRows(rows, groupDefinition.groupBy);
+		const groupState = {
+			name: groupName,
+			groupBy: groupDefinition.groupBy,
+			keyConfig,
+			countConfig,
+			groups,
+		};
+
+		assignGroupMetadata(groupState);
+		groupStates[groupName] = groupState;
+	}
+
+	return {
+		groupStates,
+		primaryGroups: groupStates[primaryGroupName].groups,
+		primaryGroupName,
+	};
+}
+
+function determinePrimaryGroupName(splitDefinition, groupNames) {
+	if (splitDefinition.primaryGroup) {
+		if (!groupNames.includes(splitDefinition.primaryGroup)) {
+			throw new Error(`primaryGroup must reference one of the configured groups: ${groupNames.join(', ')}`);
+		}
+
+		return splitDefinition.primaryGroup;
+	}
+
+	if (groupNames.length === 1) {
+		return groupNames[0];
+	}
+
+	throw new Error('primaryGroup is required when multiple groups are defined');
+}
+
+function assignGroupMetadata(groupState) {
+	for (const [groupIndex, group] of groupState.groups.entries()) {
+		group.groupIndex = groupIndex;
+		group.groupKey = `${groupState.keyConfig.prefix}${groupState.keyConfig.start + groupIndex}`;
+		group.rowCounts = group.rows.map((_, rowIndex) => `${groupState.countConfig.prefix}${groupState.countConfig.start + rowIndex}`);
+		groupState.rowToGroup = groupState.rowToGroup || new Map();
+
+		for (const [rowIndex, row] of group.rows.entries()) {
+			groupState.rowToGroup.set(row, { group, rowIndex });
+		}
+	}
+}
+
+function normalizeGroupSequenceConfig(config, configName) {
+	if (!config || typeof config !== 'object' || Array.isArray(config)) {
+		throw new Error(`${configName} must be an object`);
+	}
+
+	const sequence = config.sequence ?? config;
+	if (!sequence || typeof sequence !== 'object' || Array.isArray(sequence)) {
+		throw new Error(`${configName} must be a sequence-like object`);
+	}
+
+	const prefix = sequence.prefix ?? '';
+	const start = Number(sequence.start ?? 1);
+
+	if (!Number.isInteger(start) || start < 0) {
+		throw new Error(`${configName}.start must be a non-negative integer`);
+	}
+
+	return { prefix, start };
+}
+
+function resolveGroupValue(fromGroupReference, context) {
+	const parts = String(fromGroupReference).split('.');
+	let groupName;
+	let keyName;
+
+	if (parts.length === 1) {
+		keyName = parts[0];
+		const groupNames = Object.keys(context.groupContext.groupStates || {});
+
+		if (groupNames.length === 1) {
+			groupName = groupNames[0];
+		} else {
+			return '';
+		}
+	} else {
+		groupName = parts.shift();
+		keyName = parts.join('.');
+	}
+
+	const groupState = context.groupContext.groupStates?.[groupName];
+	if (!groupState) {
+		return '';
+	}
+
+	const row = context.row || context.groupContext.group.rows[0];
+	const rowGroupEntry = groupState.rowToGroup.get(row);
+
+	if (!rowGroupEntry) {
+		throw new Error(`Row does not belong to group ${groupName}`);
+	}
+
+	switch (keyName) {
+		case 'key':
+			return rowGroupEntry.group.groupKey;
+		case 'count':
+			return rowGroupEntry.group.rowCounts[rowGroupEntry.rowIndex] ?? '';
+		default:
+			return '';
+	}
 }
 
 // Grouping controls how many headers are produced. Rows in the same group share

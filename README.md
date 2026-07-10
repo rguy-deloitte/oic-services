@@ -127,7 +127,7 @@ out/supplier_invoice/done.trg
 The config YAML must contain:
 
 - `metadata`
-- `groupBy`
+- `groups`
 - `header`
 - `line`
 
@@ -139,7 +139,63 @@ metadata:
   version: 3
 ```
 
+### Grouping
+
+The config uses named `groups` definitions.
+
+Example named group:
+
+```yaml
+groups:
+  transaction:
+    groupBy:
+      - C6
+      - C7
+    key:
+      prefix: LCKTRELW
+      start: 10000000002000
+    count:
+      prefix: ''
+      start: 1
+```
+
+Use the group key and count in `header` or `line` with `fromGroup`:
+
+```yaml
+TRANSACTION_NUMBER:
+  fromGroup: transaction.key
+LINE_NUMBER:
+  fromGroup: transaction.count
+```
+
+If only one group is defined, you may omit the group name and use `fromGroup: key` or `fromGroup: count`.
+
 ### Output Layouts
+
+Each output section may define `group` and `mode` to control how records are generated.
+
+```yaml
+header:
+  group: transaction
+  mode: group
+  TRANSACTION_NUMBER:
+    fromGroup: transaction.key
+
+line:
+  group: transaction
+  mode: row
+  TRANSACTION_NUMBER:
+    fromGroup: transaction.key
+  LINE_NUMBER:
+    fromGroup: transaction.count
+```
+
+- `group` selects the named group that drives this output section.
+- `mode` controls record generation:
+  - `group` => one output record per group
+  - `row` => one output record per source row within each group
+
+If `mode` is omitted, `header` defaults to `group` and `line` defaults to `row`.
 
 See [examples/config.example.yaml](examples/config.example.yaml) for a complete example.
 
@@ -150,12 +206,21 @@ A repeating block uses a `prefix`, a starting index, and either `end` or `size`.
 Example:
 
 ```yaml
-header:
-  TRANSACTION_NUMBER:
-    sequence:
-      type: transaction
+groups:
+  transaction:
+    groupBy:
+      - C6
+      - C7
+    key:
       prefix: TEST
       start: 10000000000000
+    count:
+      prefix: ''
+      start: 1
+
+header:
+  TRANSACTION_NUMBER:
+    fromGroup: transaction.key
   EVENT_TYPE_CODE:
     value: JOURNAL_BALANCES
   LEDGER_NAME:
@@ -205,10 +270,9 @@ Repeat blocks can also be used in `line`:
 ```yaml
 line:
   TRANSACTION_NUMBER:
-    fromGroup: TRANSACTION_NUMBER
+    fromGroup: transaction.key
   LINE_NUMBER:
-    sequence:
-      type: line
+    fromGroup: transaction.count
 
   repeat:
     - prefix: Character

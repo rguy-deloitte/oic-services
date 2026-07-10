@@ -64,8 +64,23 @@ function normalizeConfigDefinition(configDefinition) {
 
     return {
         ...configDefinition,
-        header: normalizeRecordLayout('header', configDefinition.header),
-        line: normalizeRecordLayout('line', configDefinition.line),
+        header: normalizeOutputDefinition('header', configDefinition.header),
+        line: normalizeOutputDefinition('line', configDefinition.line),
+    };
+}
+
+function normalizeOutputDefinition(recordType, definition) {
+    if (!definition || typeof definition !== 'object' || Array.isArray(definition)) {
+        return definition;
+    }
+
+    const { group, mode, ...fieldDefinitions } = definition;
+    const normalizedFields = normalizeRecordLayout(recordType, fieldDefinitions);
+
+    return {
+        ...(group !== undefined ? { group } : {}),
+        ...(mode !== undefined ? { mode } : {}),
+        ...normalizedFields,
     };
 }
 
