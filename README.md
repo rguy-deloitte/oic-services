@@ -126,18 +126,11 @@ out/supplier_invoice/done.trg
 
 The config YAML must contain:
 
-- `metadata`
-- `groups`
-- `header`
-- `line`
+- `files`
 
-Example metadata:
+If CSV output files reference named groups, the config must also contain `groups`.
 
-```yaml
-metadata:
-  name: TEST_PROCESS
-  version: 3
-```
+`metadata` is optional and may be replaced by text files defined directly under `files`.
 
 ### Grouping
 
@@ -159,7 +152,7 @@ groups:
       start: 1
 ```
 
-Use the group key and count in `header` or `line` with `fromGroup`:
+Use the group key and count in any CSV output file with `fromGroup`:
 
 ```yaml
 TRANSACTION_NUMBER:
@@ -172,34 +165,115 @@ If only one group is defined, you may omit the group name and use `fromGroup: ke
 
 ### Output Layouts
 
-Each output section may define `group` and `mode` to control how records are generated.
+`files` is now the top-level output definition.
 
 ```yaml
-header:
-  group: transaction
-  mode: group
-  TRANSACTION_NUMBER:
-    fromGroup: transaction.key
+files:
+  XlaTrxH.csv:
+    group: transaction
+    mode: group
+    TRANSACTION_NUMBER:
+      fromGroup: transaction.key
+    EVENT_TYPE_CODE:
+      value: JOURNAL_BALANCES
+    LEDGER_NAME:
+      value: TR ACTUALS USD Apr
+    TRANSACTION_DATE:
+      from: C6
+      transform: ddmmyyyy_to_yyyymmdd
 
-line:
-  group: transaction
-  mode: row
-  TRANSACTION_NUMBER:
-    fromGroup: transaction.key
-  LINE_NUMBER:
-    fromGroup: transaction.count
+    repeat:
+      - prefix: Character
+        start: 1
+        end: 50
+        fields:
+          EVENT_TYPE:
+            value: LCKTRBALANCE
+          REVERSAL_FLAG:
+            value: N
+          SOURCE_SYSTEM_NAME:
+            value: Elwin TB
+          SOURCE_SYSTEM_FILE_NAME:
+            fromRoot: basename
+
+      - prefix: Long Character
+        start: 1
+        end: 5
+        fields:
+          DETAIL:
+            from: C9
+
+  XlaTrxL.csv:
+    group: transaction
+    mode: row
+    TRANSACTION_NUMBER:
+      fromGroup: transaction.key
+    LINE_NUMBER:
+      fromGroup: transaction.count
+
+    repeat:
+      - prefix: Character
+        start: 1
+        end: 100
+        fields:
+          DEFAULT_CURRENCY:
+            from: C14
+          COST_CENTRE_CODE:
+            from: C1
+          COST_CENTRE_NAME:
+            from: C2
+          TYPE:
+            from: C8
+          ACCOUNT_NAME:
+            from: C4
+
+      - prefix: Number
+        start: 1
+        end: 30
+        fields:
+          DEFAULT_AMOUNT:
+            expr: number(C16) - number(C17)
+            format: currency
+          LINE_NO: ''
+          LOCAL_ACCOUNT_CODE:
+            from: C3
+          ENTITY:
+            value: '263200'
+          VOUCHER_NUMBER:
+            from: C7
+          ACCOUNTED_AMOUNT:
+            expr: number(C10) - number(C11)
+            format: currency
+          ACCOUNT_CODE:
+            from: C3
+
+      - prefix: Date
+        start: 1
+        end: 10
+        fields:
+          VOUCHER_DATE:
+            from: C6
+            transform: ddmmyyyy_to_yyyymmdd
+
+  Metadata_LOCKTON_TR_ELW.txt:
+    format: txt
+    content: |
+      Metadata version number : 3
+      Application Short Name : LOCKTON_TR_ELW
 ```
 
-- `group` selects the named group that drives this output section.
+- `group` selects the named group that drives this file's records.
 - `mode` controls record generation:
   - `group` => one output record per group
   - `row` => one output record per source row within each group
+- `format` may be `csv` or `txt`; `csv` is the default.
+- `txt` files require a `content` string; `csv` files use field definitions and optional repeating blocks.
 
-If `mode` is omitted, `header` defaults to `group` and `line` defaults to `row`.
+If `mode` is omitted for a CSV file, it defaults to `row`.
 
 See [examples/config.example.yaml](examples/config.example.yaml) for a complete example.
 
-`header` and `line` support explicit fields plus repeating field ranges.
+`files` supports explicit fields plus repeating field ranges.
 
 A repeating block uses a `prefix`, a starting index, and either `end` or `size`. Named fields inside the block replace the first generated positions, and the remaining positions are filled with generic values.
 
@@ -218,37 +292,40 @@ groups:
       prefix: ''
       start: 1
 
-header:
-  TRANSACTION_NUMBER:
-    fromGroup: transaction.key
-  EVENT_TYPE_CODE:
-    value: JOURNAL_BALANCES
-  LEDGER_NAME:
-    value: TR ACTUALS USD Apr
-  TRANSACTION_DATE:
-    from: C6
-    transform: ddmmyyyy_to_yyyymmdd
+files:
+  XlaTrxH.csv:
+    group: transaction
+    mode: group
+    TRANSACTION_NUMBER:
+      fromGroup: transaction.key
+    EVENT_TYPE_CODE:
+      value: JOURNAL_BALANCES
+    LEDGER_NAME:
+      value: TR ACTUALS USD Apr
+    TRANSACTION_DATE:
+      from: C6
+      transform: ddmmyyyy_to_yyyymmdd
 
-  repeat:
-    - prefix: Character
-      start: 1
-      end: 50
-      fields:
-        EVENT_TYPE:
-          value: BALANCE
-        REVERSAL_FLAG:
-          value: N
-        SOURCE_SYSTEM_NAME:
-          value: TEST TB
-        SOURCE_SYSTEM_FILE_NAME:
-          fromRoot: basename
+    repeat:
+      - prefix: Character
+        start: 1
+        end: 50
+        fields:
+          EVENT_TYPE:
+            value: BALANCE
+          REVERSAL_FLAG:
+            value: N
+          SOURCE_SYSTEM_NAME:
+            value: TEST TB
+          SOURCE_SYSTEM_FILE_NAME:
+            fromRoot: basename
 
-    - prefix: Long Character
-      start: 1
-      end: 5
-      fields:
-        DETAIL:
-          from: C9
+      - prefix: Long Character
+        start: 1
+        end: 5
+        fields:
+          DETAIL:
+            from: C9
 ```
 
 The example above expands to:
@@ -265,29 +342,60 @@ The example above expands to:
 - `DETAIL`
 - `Long Character2` through `Long Character5`
 
-Repeat blocks can also be used in `line`:
+Repeat blocks can also be used in any CSV file definition.
 
 ```yaml
-line:
-  TRANSACTION_NUMBER:
-    fromGroup: transaction.key
-  LINE_NUMBER:
-    fromGroup: transaction.count
+files:
+  XlaTrxL.csv:
+    group: transaction
+    mode: row
+    TRANSACTION_NUMBER:
+      fromGroup: transaction.key
+    LINE_NUMBER:
+      fromGroup: transaction.count
 
-  repeat:
-    - prefix: Character
-      start: 1
-      end: 100
-      fields:
-        DEFAULT_CURRENCY:
-          from: C14
-        COST_CENTRE_CODE:
-          from: C1
-        COST_CENTRE_NAME:
-          from: C2
-        TYPE:
-          from: C8
-        ACCOUNT_NAME:
+    repeat:
+      - prefix: Character
+        start: 1
+        end: 100
+        fields:
+          DEFAULT_CURRENCY:
+            from: C14
+          COST_CENTRE_CODE:
+            from: C1
+          COST_CENTRE_NAME:
+            from: C2
+          TYPE:
+            from: C8
+          ACCOUNT_NAME:
+            from: C4
+      - prefix: Number
+        start: 1
+        end: 30
+        fields:
+          DEFAULT_AMOUNT:
+            expr: number(C16) - number(C11)
+            format: currency
+          LINE_NO: ''
+          LOCAL_ACCOUNT_CODE:
+            from: C3
+          ENTITY:
+            value: '263200'
+          VOUCHER_NUMBER:
+            from: C7
+          ACCOUNTED_AMOUNT:
+            expr: number(C10) - number(C11)
+            format: currency
+          ACCOUNT_CODE:
+            from: C3
+      - prefix: Date
+        start: 1
+        end: 10
+        fields:
+          VOUCHER_DATE:
+            from: C6
+            transform: ddmmyyyy_to_yyyymmdd
+```
           from: C4
     - prefix: Number
       start: 1

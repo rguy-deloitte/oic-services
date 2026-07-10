@@ -28,16 +28,15 @@ const handler = async (event = {}) => {
   const configFile = await loadConfigFile(configFilePath, bucketName, namespaceName);
   const structuredFile = await loadStructuredFile(objectName, bucketName, namespaceName, configFile.structure);
 
-  // Check that config file contains the correct entries.
-  if (!configFile || !configFile.metadata || !configFile.groups || !configFile.header || !configFile.line) {
-    throw new Error('Config file is missing required properties (metadata, groups, header, line)');
+  if (!configFile || !configFile.files) {
+    throw new Error('Config file is missing required properties: files');
   }
 
   // Apply the splitting logic to the structured input file using the loaded config definition
-  const { headers, lines } = await applySplitting(structuredFile, configFile);
+  const { files } = await applySplitting(structuredFile, configFile);
 
-  // Reformat JSON values into header and line csv files and write to object storage
-  await saveZippedOutputFiles(outputDirectory, headers, lines, configFile.metadata, bucketName, namespaceName, objectName);
+  // Reformat JSON values into output files and write to object storage
+  await saveZippedOutputFiles(outputDirectory, files, bucketName, namespaceName, objectName);
   await saveTriggerFile(outputDirectory, bucketName, namespaceName);
 
   console.log(`Successfully processed file: ${objectName}`);

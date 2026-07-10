@@ -65,37 +65,72 @@ function createExpressionEngine() {
 	return engine;
 }
 
-// Apply the provided splitting definition to the input data, producing header and line records for output.
+// Apply the provided splitting definition to the input data, producing output files.
 async function applySplitting(inputData, splitDefinition) {
     const rows = inputData.rows || [];
-    const groupBridge = buildGroupDefinitions(rows, splitDefinition);
+    const groupBridge = splitDefinition.groups
+        ? buildGroupDefinitions(rows, splitDefinition)
+        : { groupStates: {}, primaryGroupName: null };
 
     return {
-        headers: await buildOutputRecords('header', splitDefinition.header, groupBridge, inputData),
-        lines: await buildOutputRecords('line', splitDefinition.line, groupBridge, inputData),
+        files: await buildOutputFiles(splitDefinition.files, groupBridge, inputData),
     };
 }
 
-async function buildOutputRecords(recordType, sectionDefinition, groupBridge, inputData) {
+async function buildOutputFiles(filesDefinition, groupBridge, inputData) {
+    if (!filesDefinition) {
+        return [];
+    }
+
+    if (typeof filesDefinition !== 'object' || Array.isArray(filesDefinition)) {
+        throw new Error('files must be an object');
+    }
+
+    const outputFiles = [];
+
+    for (const [fileName, fileDefinition] of Object.entries(filesDefinition)) {
+        if (fileDefinition.format === 'txt') {
+            outputFiles.push({
+                name: fileName,
+                format: 'txt',
+                content: fileDefinition.content,
+            });
+            continue;
+        }
+
+        const rows = await buildOutputRecords(fileName, fileDefinition, groupBridge, inputData);
+
+        outputFiles.push({
+            name: fileName,
+            format: 'csv',
+            rows,
+        });
+    }
+
+    return outputFiles;
+}
+
+async function buildOutputRecords(fileName, sectionDefinition, groupBridge, inputData) {
     if (!sectionDefinition) {
         return [];
     }
 
     if (typeof sectionDefinition !== 'object' || Array.isArray(sectionDefinition)) {
-        throw new Error(`${recordType} must be an object`);
+        throw new Error(`${fileName} must be an object`);
     }
 
     const groupName = sectionDefinition.group ?? groupBridge.primaryGroupName;
-    const mode = sectionDefinition.mode ?? getDefaultOutputMode(recordType);
+    const mode = sectionDefinition.mode ?? getDefaultOutputMode(fileName);
     const groupState = groupBridge.groupStates[groupName];
 
     if (!groupState) {
-        throw new Error(`${recordType}.group must reference one of the configured groups: ${Object.keys(groupBridge.groupStates).join(', ')}`);
+        throw new Error(`${fileName}.group must reference one of the configured groups: ${Object.keys(groupBridge.groupStates).join(', ')}`);
     }
 
     const fieldDefinitions = { ...sectionDefinition };
     delete fieldDefinitions.group;
     delete fieldDefinitions.mode;
+    delete fieldDefinitions.format;
 
     const records = [];
 
@@ -126,15 +161,15 @@ async function buildOutputRecords(recordType, sectionDefinition, groupBridge, in
                 records.push(outputRecord);
             }
         } else {
-            throw new Error(`${recordType}.mode must be either 'group' or 'row'`);
+            throw new Error(`${fileName}.mode must be either 'group' or 'row'`);
         }
     }
 
     return records;
 }
 
-function getDefaultOutputMode(recordType) {
-    return recordType === 'line' ? 'row' : 'group';
+function getDefaultOutputMode() {
+    return 'row';
 }
 
 function createSplittingContext(root, row, groupContext, lineIndex) {

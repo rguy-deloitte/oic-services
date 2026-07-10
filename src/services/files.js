@@ -4,6 +4,7 @@ const objectStorage = require('oci-objectstorage');
 const JSZip = require('jszip');
 const XLSX = require('xlsx');
 const yaml = require('yaml');
+const dayjs = require('dayjs');
 
 // Reuse a single OCI Object Storage client across invocations within the same
 // function container. Caching the client avoids rebuilding the resource principal
@@ -62,10 +63,89 @@ function normalizeConfigDefinition(configDefinition) {
         return configDefinition;
     }
 
+    const normalizedFiles = normalizeFilesDefinition(configDefinition.files);
+
+    if (!normalizedFiles && (configDefinition.header || configDefinition.line || configDefinition.metadata)) {
+        return {
+            ...configDefinition,
+            files: normalizeLegacyFileDefinitions(configDefinition),
+        };
+    }
+
     return {
         ...configDefinition,
-        header: normalizeOutputDefinition('header', configDefinition.header),
-        line: normalizeOutputDefinition('line', configDefinition.line),
+        files: normalizedFiles,
+    };
+}
+
+function normalizeFilesDefinition(filesDefinition) {
+    if (!filesDefinition) {
+        return undefined;
+    }
+
+    if (typeof filesDefinition !== 'object' || Array.isArray(filesDefinition)) {
+        throw new Error('files must be an object');
+    }
+
+    return Object.fromEntries(
+        Object.entries(filesDefinition).map(([fileName, fileDefinition]) => [
+            fileName,
+            normalizeFileDefinition(fileName, fileDefinition),
+        ]),
+    );
+}
+
+function normalizeLegacyFileDefinitions(configDefinition) {
+    const files = {};
+
+    if (configDefinition.header) {
+        files['XlaTrxH.csv'] = normalizeFileDefinition('XlaTrxH.csv', configDefinition.header, 'csv');
+    }
+
+    if (configDefinition.line) {
+        files['XlaTrxL.csv'] = normalizeFileDefinition('XlaTrxL.csv', configDefinition.line, 'csv');
+    }
+
+    if (configDefinition.metadata && configDefinition.metadata.name && configDefinition.metadata.version) {
+        files[`Metadata_${configDefinition.metadata.name}.txt`] = {
+            format: 'txt',
+            content: `Metadata version number : ${configDefinition.metadata.version}\nApplication Short Name : ${configDefinition.metadata.name}\n`,
+        };
+    }
+
+    return files;
+}
+
+function normalizeFileDefinition(fileName, fileDefinition, defaultFormat = 'csv') {
+    if (!fileDefinition || typeof fileDefinition !== 'object' || Array.isArray(fileDefinition)) {
+        throw new Error(`files.${fileName} must be an object`);
+    }
+
+    const format = (fileDefinition.format ?? defaultFormat).toLowerCase();
+    const { group, mode, content, ...fieldDefinitions } = fileDefinition;
+
+    if (format === 'txt') {
+        if (content === undefined) {
+            throw new Error(`files.${fileName}.content is required for txt format`);
+        }
+
+        if (typeof content !== 'string') {
+            throw new Error(`files.${fileName}.content must be a string`);
+        }
+
+        return {
+            format: 'txt',
+            content,
+        };
+    }
+
+    const normalizedFields = normalizeRecordLayout(fileName, fieldDefinitions);
+
+    return {
+        format: 'csv',
+        ...(group !== undefined ? { group } : {}),
+        ...(mode !== undefined ? { mode } : {}),
+        ...normalizedFields,
     };
 }
 
@@ -449,7 +529,7 @@ async function uploadObjectToObjectStorage(objectName, content, contentType, buc
     });
 }
 
-async function saveZippedOutputFiles(outputDirectory, headers, lines, metadata, bucketName, namespaceName, inputObjectName) {
+async function saveZippedOutputFiles(outputDirectory, outputFiles, bucketName, namespaceName, inputObjectName) {
     if (!outputDirectory) {
         throw new Error('outputDirectory is required');
     }
@@ -458,23 +538,34 @@ async function saveZippedOutputFiles(outputDirectory, headers, lines, metadata, 
         throw new Error('bucketName and namespaceName are required to save output files to Object Storage');
     }
 
-    if (!metadata || !metadata.name || !metadata.version) {
-        throw new Error('metadata with name and version is required to save output files');
-    }
-
     if (!inputObjectName || typeof inputObjectName !== 'string') {
         throw new Error('inputObjectName is required to compute the output zip filename');
+    }
+
+    if (!Array.isArray(outputFiles) || outputFiles.length === 0) {
+        throw new Error('At least one output file is required to save zipped output files');
     }
 
     const normalizedOutputDirectory = outputDirectory.endsWith('/') ? outputDirectory : `${outputDirectory}/`;
     const zip = new JSZip();
 
-    zip.file('XlaTrxH.csv', buildCsvBuffer(headers));
-    zip.file('XlaTrxL.csv', buildCsvBuffer(lines));
+    for (const file of outputFiles) {
+        if (!file.name) {
+            throw new Error('Each output file must include a name');
+        }
 
-    const metadataContent = `Metadata version number : ${metadata.version}\nApplication Short Name : ${metadata.name}\n`;
+        if (file.format === 'txt') {
+            zip.file(file.name, Buffer.from(file.content || '', 'utf8'));
+            continue;
+        }
 
-    zip.file(`Metadata_${metadata.name}.txt`, metadataContent);
+        if (file.format === 'csv') {
+            zip.file(file.name, buildCsvBuffer(file.rows || []));
+            continue;
+        }
+
+        throw new Error(`Unsupported output file format: ${file.format}`);
+    }
 
     const zipContent = await zip.generateAsync({
         type: 'nodebuffer',
