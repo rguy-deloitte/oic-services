@@ -3,6 +3,9 @@
 /node_modules
 /build
 
+# Sample Data
+oci-object-storage/in/*
+
 # Logs
 *.log
 npm-debug.log*
