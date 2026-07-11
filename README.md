@@ -128,13 +128,16 @@ The config YAML must contain:
 
 - `files`
 
-If CSV output files reference named groups, the config must also contain `groups`.
+The optional `structure` block can also be used to control worksheet input parsing for CSV/XLSX sources.
 
-`metadata` is optional and may be replaced by text files defined directly under `files`.
+`groups` is optional. If not defined, a single implicit group is created containing all rows, allowing files to map directly from source fields.
+
+If CSV output files reference named groups or use `fromGroup`, the config must also contain `groups`.
+
 
 ### Grouping
 
-The config uses named `groups` definitions.
+The config may define named `groups`.
 
 Example named group:
 
@@ -165,7 +168,26 @@ If only one group is defined, you may omit the group name and use `fromGroup: ke
 
 ### Output Layouts
 
-`files` is now the top-level output definition.
+`files` is the top-level output definition. Each file can be a CSV with field definitions or a TXT with static content.
+
+#### Simple example without groups
+
+```yaml
+files:
+  output.csv:
+    COST_CENTER:
+      from: C1
+    ACCOUNT_NAME:
+      from: C2
+    AMOUNT:
+      from: C3
+```
+
+This generates one output CSV per source row, mapping columns directly from the input.
+
+#### Grouped example
+
+`files` is the top-level output definition.
 
 ```yaml
 files:
@@ -396,40 +418,12 @@ files:
             from: C6
             transform: ddmmyyyy_to_yyyymmdd
 ```
-          from: C4
-    - prefix: Number
-      start: 1
-      end: 30
-      fields:
-        DEFAULT_AMOUNT:
-          expr: number(C16) - number(C17)
-          format: currency
-        LINE_NO: ''
-        LOCAL_ACCOUNT_CODE:
-          from: C3
-        ENTITY:
-          value: '263200'
-        VOUCHER_NUMBER:
-          from: C7
-        ACCOUNTED_AMOUNT:
-          expr: number(C10) - number(C11)
-          format: currency
-        ACCOUNT_CODE:
-          from: C3
-    - prefix: Date
-      start: 1
-      end: 10
-      fields:
-        VOUCHER_DATE:
-          from: C6
-          transform: ddmmyyyy_to_yyyymmdd
-```
 
 The repeating block key may be `repeat` or `repeating`.
 
 ### Structure Options
 
-The optional `structure` block controls how worksheet columns are mapped.
+The optional `structure` block controls how worksheet columns are mapped for CSV and XLSX input files.
 
 ```yaml
 structure:

@@ -70,7 +70,7 @@ async function applySplitting(inputData, splitDefinition) {
     const rows = inputData.rows || [];
     const groupBridge = splitDefinition.groups
         ? buildGroupDefinitions(rows, splitDefinition)
-        : { groupStates: {}, primaryGroupName: null };
+        : buildDefaultGroupDefinitions(rows);
 
     return {
         files: await buildOutputFiles(splitDefinition.files, groupBridge, inputData),
@@ -124,7 +124,12 @@ async function buildOutputRecords(fileName, sectionDefinition, groupBridge, inpu
     const groupState = groupBridge.groupStates[groupName];
 
     if (!groupState) {
-        throw new Error(`${fileName}.group must reference one of the configured groups: ${Object.keys(groupBridge.groupStates).join(', ')}`);
+        const availableGroups = Object.keys(groupBridge.groupStates);
+        throw new Error(
+            availableGroups.length === 0
+                ? `${fileName}: no groups defined and no fields specified`
+                : `${fileName}.group must reference one of the configured groups: ${availableGroups.join(', ')}`
+        );
     }
 
     const fieldDefinitions = { ...sectionDefinition };
@@ -335,6 +340,25 @@ function buildExpressionContext(context) {
 		},
 		header: context.groupContext.header,
 		lineNumber: context.lineIndex === null ? null : context.lineIndex + 1
+	};
+}
+
+function buildDefaultGroupDefinitions(rows) {
+	const defaultGroupState = {
+		name: 'default',
+		groupBy: [],
+		keyConfig: { prefix: '', start: 1 },
+		countConfig: { prefix: '', start: 1 },
+		groups: rows.length > 0 ? [{ key: 'default', rows }] : [],
+		rowToGroup: new Map(),
+	};
+
+	assignGroupMetadata(defaultGroupState);
+
+	return {
+		groupStates: { default: defaultGroupState },
+		primaryGroups: defaultGroupState.groups,
+		primaryGroupName: 'default',
 	};
 }
 

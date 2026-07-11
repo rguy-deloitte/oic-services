@@ -43,6 +43,12 @@ files:
           SOURCE_SYSTEM_FILE_NAME:
             fromRoot: basename
 
+      - prefix: Number
+        end: 10
+
+      - prefix: Date
+        end: 10
+
       - prefix: Long Character
         start: 1
         end: 5
@@ -101,6 +107,9 @@ files:
           VOUCHER_DATE:
             from: C6
             transform: ddmmyyyy_to_yyyymmdd
+      - prefix: Long Character
+        start: 1
+        end: 5
 
   Metadata_TEST.txt:
     format: txt

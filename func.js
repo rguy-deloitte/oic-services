@@ -40,7 +40,7 @@ const handler = async (event = {}) => {
   await saveTriggerFile(outputDirectory, bucketName, namespaceName);
 
   console.log(`Successfully processed file: ${objectName}`);
-  console.log(`Generated ${headers.length} header records and ${lines.length} line records`);
+  console.log(`Generated ${files.length} output file(s)`);
 
   return {
     ok: true,
