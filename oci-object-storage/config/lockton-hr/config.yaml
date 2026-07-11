@@ -1,0 +1,95 @@
+groups:
+  transaction:
+    groupBy:
+      - Effective Date
+      - Transaction Type
+    key:
+      prefix: LCKUKHR
+      start: 10000000000000
+    count:
+      start: 1
+
+structure:
+  headerRowPresent: true
+  ignoreHeaderRow: false
+
+files:
+  XlaTrxH.csv:
+    group: transaction
+    mode: group
+
+    TRANSACTION_NUMBER:
+      fromGroup: transaction.key
+    EVENT_TYPE_CODE:
+      from: Transaction Type
+    LEDGER_NAME:
+      value: UK ACTUALS GBP Apr
+    TRANSACTION_DATE:
+      from: Effective Date
+      transform: ddmmyyyy_to_yyyymmdd
+    
+    repeat:
+      - prefix: Character
+        start: 1
+        end: 50
+        fields:
+          REVERSAL_FLAG:
+            value: N
+          SOURCE_SYSTEM_NAME:
+            value: UKResourceLink
+          SOURCE_SYSTEM_FILE_NAME:
+            fromRoot: basename
+
+      - prefix: Number
+        end: 10
+
+      - prefix: Date
+        end: 10
+
+      - prefix: Long Character
+        end: 5
+
+  XlaTrxL.csv:
+    group: transaction
+    mode: row
+
+    TRANSACTION_NUMBER:
+      fromGroup: transaction.key
+    LINE_NUMBER:
+      fromGroup: transaction.count
+    
+    repeat:
+      - prefix: Character
+        start: 1
+        end: 100
+        fields:
+          DEFAULT_CURRENCY:
+            from: Currency
+          Business Unit:
+            from: Business Unit
+          Account:
+            from: Account
+          Chartfield2:
+            from: Chartfield2
+          Department:
+            from: Department
+          Operating Unit:
+            from: Operating Unit
+          Affiliate:
+            from: Affiliate
+          Project Code:
+            from: Project Code
+          Description:
+            from: Description
+
+      - prefix: Number
+        end: 30
+        fields:
+          DEFAULT_AMOUNT:
+            from: Amount
+
+      - prefix: Date
+        end: 10
+
+      - prefix: Long Character
+        end: 5
