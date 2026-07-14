@@ -19,6 +19,16 @@ Words...
 | [OCI Function](https://docs.oracle.com/en-us/iaas/Content/Functions/Concepts/functionsoverview.htm) | The ftp-bridge Service itself (serverless function) |
 | [Service Log](https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/loggingoverview.htm) | Logging for the ftp-bridge service |
 
+### To run the RowSplitter function locally
+
+Configure `localtest.js` as follows:
+
+- `resourceName` (local source file)
+- `additionalDetails.bucketName` (local folder)
+- `additionalDetails.namespace: 'localtest'` (already done)
+
+Then run: `node localtest.js`
+
 ### Prepare the Repo
 
 #### Create 'terraform.tfvars' file as follows

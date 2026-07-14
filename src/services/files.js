@@ -35,7 +35,15 @@ function getObjectStorageClient() {
 // 4. Return a normalized JSON object with filename and rows.
 async function loadStructuredFile(filename, bucketName, namespaceName, structure) {
     const extension = path.extname(filename).toLowerCase();
-    const { content } = await loadFileFromObjectStorage(filename, bucketName, namespaceName);
+    let content;
+
+    if (namespaceName == 'localtest') {
+        // load file from local filesystem
+        const fs = require('node:fs').promises;
+        content = await fs.readFile(filename);
+    } else {
+        ({ content } = await loadFileFromObjectStorage(filename, bucketName, namespaceName));
+    }
 
     // Route based on file extension so splitting logic can handle any format
     switch (extension) {
@@ -53,9 +61,18 @@ async function loadStructuredFile(filename, bucketName, namespaceName, structure
 
 // Loads a config file from object storage based on the path of the input file
 async function loadConfigFile(configFilePath, bucketName, namespaceName) {
-    const configContent = await loadFileFromObjectStorage(configFilePath, bucketName, namespaceName);
+    let configContent
 
-    return normalizeConfigDefinition(yaml.parse(configContent.content.toString('utf8')));
+    if (namespaceName == 'localtest') {
+        const fs = require('fs');
+        const jsyaml = require('js-yaml');
+        configContent = jsyaml.load(fs.readFileSync(configFilePath, 'utf8'));
+        return normalizeConfigDefinition(configContent);
+    } else {
+        ({ configContent } = await loadFileFromObjectStorage(configFilePath, bucketName, namespaceName));
+        return normalizeConfigDefinition(yaml.parse(configContent.content.toString('utf8')));
+    }
+    // const configContent = await loadFileFromObjectStorage(configFilePath, bucketName, namespaceName);
 }
 
 function normalizeConfigDefinition(configDefinition) {
@@ -516,17 +533,24 @@ function escapeCsvValue(value) {
     return `"${stringValue.replace(/"/g, '""')}"`;
 }
 
-async function uploadObjectToObjectStorage(objectName, content, contentType, bucketName, namespaceName) {
-    const client = await getObjectStorageClient();
+async function uploadObjectToObjectStorage(normalizedOutputDirectory, zipFileName, content, contentType, bucketName, namespaceName) {
+    if (namespaceName == 'localtest') {
+        const fs = require('node:fs').promises;
+        const filePath = path.join(normalizedOutputDirectory, zipFileName);
+        await fs.writeFile(filePath, content);
+    } else {
+        const client = await getObjectStorageClient();
+        const objectName = `${normalizedOutputDirectory}${zipFileName}`
 
-    await client.putObject({
-        namespaceName,
-        bucketName,
-        objectName,
-        contentType,
-        contentLength: content.length,
-        putObjectBody: content,
-    });
+        await client.putObject({
+            namespaceName,
+            bucketName,
+            objectName,
+            contentType,
+            contentLength: content.length,
+            putObjectBody: content,
+        });
+    }    
 }
 
 async function saveZippedOutputFiles(outputDirectory, outputFiles, bucketName, namespaceName, inputObjectName) {
@@ -575,7 +599,8 @@ async function saveZippedOutputFiles(outputDirectory, outputFiles, bucketName, n
     const zipFileName = buildTimestampedZipName(inputObjectName);
 
     await uploadObjectToObjectStorage(
-        `${normalizedOutputDirectory}${zipFileName}`,
+        normalizedOutputDirectory,
+        zipFileName,
         zipContent,
         'application/zip',
         bucketName,
@@ -601,7 +626,8 @@ async function saveTriggerFile(outputDirectory, bucketName, namespaceName) {
     const normalizedOutputDirectory = outputDirectory.endsWith('/') ? outputDirectory : `${outputDirectory}/`;
 
     await uploadObjectToObjectStorage(
-        `${normalizedOutputDirectory}done.trg`,
+        normalizedOutputDirectory,
+        'done.trg',
         Buffer.alloc(0),
         'text/plain',
         bucketName,

@@ -8,12 +8,13 @@
 	"dependencies": {
 		"@fnproject/fdk": ">=0.0.98",
 		"dayjs": "^1.11.21",
-		"jszip": "^3.10.1",
 		"jexl": "^2.3.0",
+		"js-yaml": "^5.2.1",
+		"jszip": "^3.10.1",
 		"oci-common": "^2.132.0",
 		"oci-objectstorage": "^2.132.0",
-		"yaml": "^2.9.0",
-		"xlsx": "^0.18.5"
+		"xlsx": "^0.18.5",
+		"yaml": "^2.9.0"
 	},
 	"overrides": {
 		"whatwg-url": "17.1.0"
