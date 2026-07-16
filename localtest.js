@@ -7,7 +7,7 @@ const { handler } = require('./func.js');
 // - event.data.additionalDetailss.namespace
 const mockEvent = {
   data: {
-    resourceName: 'in/test/testfile.csv',
+    resourceName: 'in/test/testdata.csv',
     additionalDetails: {
       bucketName: 'oci-object-storage',
       namespace: 'localtest'
