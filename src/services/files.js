@@ -230,8 +230,8 @@ function expandRepeatSection(recordType, repeatKey, sectionIndex, sectionDefinit
     }
 
     const start = sectionDefinition.start === undefined ? 1 : Number(sectionDefinition.start);
-    if (!Number.isInteger(start) || start < 1) {
-        throw new Error(`${recordType}.${repeatKey}[${sectionIndex}].start must be an integer >= 1`);
+    if (!Number.isInteger(start)) {
+        throw new Error(`${recordType}.${repeatKey}[${sectionIndex}].start must be an integer`);
     }
 
     let size;
