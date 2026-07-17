@@ -10,11 +10,10 @@ groups:
       start: 1
 
 structure:
-  headerRowPresent: true
-  ignoreHeaderRow: true
+  headerRowPresent: false
 
 files:
-  headers.csv:
+  ApInvoiceInterface.csv:
     group: transaction
     mode: group
 
@@ -107,7 +106,7 @@ files:
         start: 0
         end: 15
         fields:
-          AttributeCategory:
+          "Attribute Category":
             value: CONCUR
           "Attribute 1":
             from: C2
@@ -132,7 +131,7 @@ files:
 
     URLAttachements:
 
-  lines.csv:
+  ApInvoiceLinesInterface.csv:
     group: transaction
     mode: row
 
@@ -309,8 +308,7 @@ files:
     "Requester Email Address":
     "RCV Transaction Id":
 
-  metadata.txt:
+  ApImportPayaplesJob.properties:
     format: txt
     content: |
-      Metadata version number : 3
-      Application Short Name : INVOICES
+      /oracle/apps/ess/financials/payables/invoices/transactions/,APXIIMPT,apinvoiceimport_5HwTeYG7EfGa9d-APlQGrQ.zip,,,,,,,,CONCUR,5HwTeYG7EfGa9d-APlQGrQ,,N,,,1

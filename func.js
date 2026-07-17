@@ -16,6 +16,12 @@ const handler = async (event = {}) => {
     throw new Error(`Object name must start with "in/", but got: ${sourceFilePath}`);
   }
 
+  // const validateFirstLevelSubFolderName = /^\/?[^/]+\/in\//;
+  // const validateSecondLevelSubFolderName = /^\/?[^/]+\/[^/]+\/in\//;
+  // if (!sourceFilePath.match(validateFirstLevelSubFolderName)) {
+  //   throw new Error(`Object name must start with "in/", but got: ${sourceFilePath}`);
+  // }
+
   console.log(`Processing file: ${sourceFilePath}`);
   
   // Output directory is objectName with "in/" replaced by "out/" and filename removed, e.g. "in/config1/data.csv" -> "out/config1/"
