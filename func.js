@@ -22,7 +22,7 @@ const handler = async (event = {}) => {
   //   throw new Error(`Object name must start with "in/", but got: ${sourceFilePath}`);
   // }
 
-  console.log(`Processing file: ${sourceFilePath}`);
+  console.log(`v0.0.7 - Processing file: ${sourceFilePath}`);
   
   // Output directory is objectName with "in/" replaced by "out/" and filename removed, e.g. "in/config1/data.csv" -> "out/config1/"
   let outputDirectory = sourceFilePath.replace(/^in\//, 'out/').replace(/\/[^\/]+$/, '/');

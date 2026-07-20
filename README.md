@@ -9,8 +9,6 @@ OIC Helper functions:
 
 ![Architecture Diagram](./oics-architecture-diagram.png)
 
-Words...
-
 | Resource      | Purpose |
 | ------------- |:-------------:|
 | [Container Registry & Repository](https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm) | Used to store the container image |
@@ -204,6 +202,8 @@ files:
   XlaTrxH.csv:
     group: transaction
     mode: group
+    includeHeader: [true/false]
+
     TRANSACTION_NUMBER:
       fromGroup: transaction.key
     EVENT_TYPE_CODE:
@@ -529,21 +529,23 @@ To view them:
 6. Confirm that the output prefix contains:
    - `XlaTransactionUpload.zip`
    - `done.trg`
-
+7. Login to OIC
+8. Navigate to: `Integrations` -> `Projects` -> `LCK FBDI Bulk Data Import Project` -> `LCK Oracle AP Invoices FBDI Import SCH INT`
+9. Run the Integration
 
 ## Notes & Links
 
 - Terraform:
-    - https://docs.oracle.com/en-us/iaas/Content/dev/terraform/home.htm
-    - https://developer.hashicorp.com/terraform/tutorials/oci-get-started
-    - https://docs.oracle.com/en-us/iaas/Content/dev/terraform/tutorials/tf-simple-infrastructure.htm
-    - https://registry.terraform.io/providers/oracle/oci/latest/docs
-    - https://docs.oracle.com/en/cloud/foundation/iac/index.html#deployment-architectures
+  - https://docs.oracle.com/en-us/iaas/Content/dev/terraform/home.htm
+  - https://developer.hashicorp.com/terraform/tutorials/oci-get-started
+  - https://docs.oracle.com/en-us/iaas/Content/dev/terraform/tutorials/tf-simple-infrastructure.htm
+  - https://registry.terraform.io/providers/oracle/oci/latest/docs
+  - https://docs.oracle.com/en/cloud/foundation/iac/index.html#deployment-architectures
 - OCI CLI, Functions & Docker:
-    - https://developer.hashicorp.com/terraform/tutorials/oci-get-started/oci-build
-    - https://docs.oracle.com/en-us/iaas/Content/Functions/home.htm
-    - https://fnproject.io/tutorials/node/intro/
-    - https://docs.docker.com/get-started/
+  - https://developer.hashicorp.com/terraform/tutorials/oci-get-started/oci-build
+  - https://docs.oracle.com/en-us/iaas/Content/Functions/home.htm
+  - https://fnproject.io/tutorials/node/intro/
+  - https://docs.docker.com/get-started/
 - To list compartments: `oci iam compartment list --config-file /Users/[your username]]/.oci/config --profile DEFAULT --auth security_token --compartment-id-in-subtree true`
 - To refresh OCI auth token: `oci session refresh --profile OCITF`
 - To manually invoke the function: `fn invoke ftp-bridge-application ftp-bridge-function`

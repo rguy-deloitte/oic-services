@@ -13,9 +13,10 @@ structure:
   headerRowPresent: false
 
 files:
-  ApInvoiceInterface.csv:
+  ApInvoicesInterface.csv:
     group: transaction
     mode: group
+    includeHeader: false
 
     "*Invoice ID":
       from: C2
@@ -29,6 +30,7 @@ files:
       from: C10
     "*Invoice Date":
       from: C7
+      transform: ddmmyyyy_to_yyyymmdd
     "**Supplier Name":
       from: C164
     "**Supplier Number":
@@ -56,6 +58,7 @@ files:
     "Invoice Received Date":
     "Accounting Date":
       from: C7
+      transform: ddmmyyyy_to_yyyymmdd
     "Payment Method":
     "Pay Group":
     "Pay Alone":
@@ -71,6 +74,9 @@ files:
     "Liability Combination":
     "Document Category Code":
     "Voucher Number":
+    "Requester First Name":
+    "Requester Last Name":
+    "Requester Employee Number":
     "Delivery Channel Code":
     "Bank Charge Bearer":
     "Remit-to Supplier":
@@ -95,6 +101,8 @@ files:
     "Supplier Tax Invoice Date":
     "Supplier Tax Invoice Conversion Rate":
     "Port Of Entry Code":
+    "Correction Year":
+    "Correction Period":
     "Import Document Number":
     "Import Document Date":
     "Tax Control Amount":
@@ -130,10 +138,13 @@ files:
         end: 5
 
     URLAttachements:
+    "Remit-to Bank Account Number":
+      value: END
 
   ApInvoiceLinesInterface.csv:
     group: transaction
     mode: row
+    includeHeader: false
 
     "*Invoice ID":
       from: C2
@@ -166,6 +177,7 @@ files:
     "Distribution Set":
     "Accounting Date":
       from: C7
+      transform: ddmmyyyy_to_yyyymmdd
     "Overlay Account Segment":
     "Overlay Primary Balancing Segment":
     "Overlay Cost Center Segment":
@@ -307,8 +319,9 @@ files:
     "Funding Source Number":
     "Requester Email Address":
     "RCV Transaction Id":
+      value: END
 
-  ApImportPayaplesJob.properties:
+  ApImportPayablesJob.properties:
     format: txt
     content: |
-      /oracle/apps/ess/financials/payables/invoices/transactions/,APXIIMPT,apinvoiceimport_5HwTeYG7EfGa9d-APlQGrQ.zip,,,,,,,,CONCUR,5HwTeYG7EfGa9d-APlQGrQ,,N,,,1
+      /oracle/apps/ess/financials/payables/invoices/transactions/,APXIIMPT,concur-AP-Invoice-data,,300000004866332,,,,,,CONCUR,,,N,300000004765764,,1

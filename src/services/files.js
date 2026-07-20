@@ -61,18 +61,15 @@ async function loadStructuredFile(filename, bucketName, namespaceName, structure
 
 // Loads a config file from object storage based on the path of the input file
 async function loadConfigFile(configFilePath, bucketName, namespaceName) {
-    let configContent
-
     if (namespaceName == 'localtest') {
         const fs = require('fs');
         const jsyaml = require('js-yaml');
-        configContent = jsyaml.load(fs.readFileSync(configFilePath, 'utf8'));
+        const configContent = jsyaml.load(fs.readFileSync(configFilePath, 'utf8'));
         return normalizeConfigDefinition(configContent);
     } else {
-        ({ configContent } = await loadFileFromObjectStorage(configFilePath, bucketName, namespaceName));
+        const configContent = await loadFileFromObjectStorage(configFilePath, bucketName, namespaceName);
         return normalizeConfigDefinition(yaml.parse(configContent.content.toString('utf8')));
     }
-    // const configContent = await loadFileFromObjectStorage(configFilePath, bucketName, namespaceName);
 }
 
 function normalizeConfigDefinition(configDefinition) {
@@ -139,7 +136,7 @@ function normalizeFileDefinition(fileName, fileDefinition, defaultFormat = 'csv'
     }
 
     const format = (fileDefinition.format ?? defaultFormat).toLowerCase();
-    const { group, mode, content, ...fieldDefinitions } = fileDefinition;
+    const { group, mode, content, includeHeader, ...fieldDefinitions } = fileDefinition;
 
     if (format === 'txt') {
         if (content === undefined) {
@@ -162,6 +159,7 @@ function normalizeFileDefinition(fileName, fileDefinition, defaultFormat = 'csv'
         format: 'csv',
         ...(group !== undefined ? { group } : {}),
         ...(mode !== undefined ? { mode } : {}),
+        ...(includeHeader !== undefined ? { includeHeader } : {}),
         ...normalizedFields,
     };
 }
@@ -171,12 +169,13 @@ function normalizeOutputDefinition(recordType, definition) {
         return definition;
     }
 
-    const { group, mode, ...fieldDefinitions } = definition;
+    const { group, mode, includeHeader, ...fieldDefinitions } = definition;
     const normalizedFields = normalizeRecordLayout(recordType, fieldDefinitions);
 
     return {
         ...(group !== undefined ? { group } : {}),
         ...(mode !== undefined ? { mode } : {}),
+        ...(includeHeader !== undefined ? { includeHeader } : {}),
         ...normalizedFields,
     };
 }
@@ -512,15 +511,19 @@ function normalizeJsonDocument(filename, parsedJson) {
     return buildStructuredFile(filename, [parsedJson]);
 }
 
-function buildCsvBuffer(rows) {
+function buildCsvBuffer(rows, includeHeader = true) {
     const columnNames = rows.length > 0 ? Object.keys(rows[0]) : [];
-    const csvLines = [columnNames.map(escapeCsvValue).join(',')];
+    const csvLines = [];
+
+    if (includeHeader && columnNames.length > 0) {
+        csvLines.push(columnNames.map(escapeCsvValue).join(','));
+    }
 
     for (const row of rows) {
         csvLines.push(columnNames.map((columnName) => escapeCsvValue(row[columnName] ?? '')).join(','));
     }
 
-    return Buffer.from(`${csvLines.join('\n')}\n`, 'utf8');
+    return Buffer.from(`${csvLines.join('\n')}${csvLines.length > 0 ? '\n' : ''}`, 'utf8');
 }
 
 function escapeCsvValue(value) {
@@ -584,7 +587,7 @@ async function saveZippedOutputFiles(outputDirectory, outputFiles, bucketName, n
         }
 
         if (file.format === 'csv') {
-            zip.file(file.name, buildCsvBuffer(file.rows || []));
+            zip.file(file.name, buildCsvBuffer(file.rows || [], file.includeHeader !== false));
             continue;
         }
 
