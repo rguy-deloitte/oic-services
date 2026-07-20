@@ -394,8 +394,12 @@ function buildGroupDefinitions(rows, splitDefinition) {
 			throw new Error(`groups.${groupName}.groupBy must be an array`);
 		}
 
-		const keyConfig = normalizeGroupSequenceConfig(groupDefinition.key, `groups.${groupName}.key`);
-		const countConfig = normalizeGroupSequenceConfig(groupDefinition.count, `groups.${groupName}.count`);
+		const keyConfig = groupDefinition.key
+			? normalizeGroupSequenceConfig(groupDefinition.key, `groups.${groupName}.key`)
+			: null;
+		const countConfig = groupDefinition.count
+			? normalizeGroupSequenceConfig(groupDefinition.count, `groups.${groupName}.count`)
+			: null;
 
 		const groups = groupRows(rows, groupDefinition.groupBy);
 		const groupState = {
@@ -436,8 +440,12 @@ function determinePrimaryGroupName(splitDefinition, groupNames) {
 function assignGroupMetadata(groupState) {
 	for (const [groupIndex, group] of groupState.groups.entries()) {
 		group.groupIndex = groupIndex;
-		group.groupKey = `${groupState.keyConfig.prefix}${groupState.keyConfig.start + groupIndex}`;
-		group.rowCounts = group.rows.map((_, rowIndex) => `${groupState.countConfig.prefix}${groupState.countConfig.start + rowIndex}`);
+		group.groupKey = groupState.keyConfig
+			? `${groupState.keyConfig.prefix}${groupState.keyConfig.start + groupIndex}`
+			: undefined;
+		group.rowCounts = groupState.countConfig
+			? group.rows.map((_, rowIndex) => `${groupState.countConfig.prefix}${groupState.countConfig.start + rowIndex}`)
+			: [];
 		groupState.rowToGroup = groupState.rowToGroup || new Map();
 
 		for (const [rowIndex, row] of group.rows.entries()) {
@@ -499,8 +507,14 @@ function resolveGroupValue(fromGroupReference, context) {
 
 	switch (keyName) {
 		case 'key':
+			if (!groupState.keyConfig) {
+				throw new Error(`groups.${groupName} has no key definition`);
+			}
 			return rowGroupEntry.group.groupKey;
 		case 'count':
+			if (!groupState.countConfig) {
+				throw new Error(`groups.${groupName} has no count definition`);
+			}
 			return rowGroupEntry.group.rowCounts[rowGroupEntry.rowIndex] ?? '';
 		default:
 			return '';
