@@ -43,8 +43,8 @@ image_path          = "<docker image path> (see below)"
 
 ``` shell
 docker login lhr.ocir.io
-docker build --platform=linux/amd64 -t lhr.ocir.io/[repositoryNamespace]/row-splitter:0.1.0 .
-docker push lhr.ocir.io/[repositoryNamespace]/row-splitter:0.1.0
+docker build --platform=linux/amd64 -t lhr.ocir.io/[repositoryNamespace]/row-splitter .
+docker push lhr.ocir.io/[repositoryNamespace]/row-splitter
 ```
 
 (you may want to move the docker image to correct compartment if this is your first time pushing) <br>
