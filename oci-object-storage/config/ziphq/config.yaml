@@ -1,13 +1,7 @@
 groups:
   transaction:
     groupBy:
-      - C1
-    key:
-      prefix: CONCPREFIX
-      start: 10000000002000
-    count:
-      prefix: ''
-      start: 1
+      - C2
 
 structure:
   headerRowPresent: true
@@ -24,7 +18,7 @@ files:
     "*Business Unit":
       value: LCK UK BU
     "*Source":
-      value: ZIPHQ
+      value: CONCUR
     "*Invoice Number":
       from: C6
     "*Invoice Amount":
@@ -325,4 +319,4 @@ files:
   ApImportPayablesJob.properties:
     format: txt
     content: |
-      /oracle/apps/ess/financials/payables/invoices/transactions/,APXIIMPT,concur-AP-Invoice-data,,300000004866332,,,,,,CONCUR,,,N,300000004765764,,1
+      /oracle/apps/ess/financials/payables/invoices/transactions/,APXIIMPT,ziphq-sample-data,,300000004866332,,,,,,CONCUR,,,N,300000004765764,,1
