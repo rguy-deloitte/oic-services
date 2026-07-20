@@ -5,6 +5,7 @@
 
 # Sample Data
 oci-object-storage/in/*
+oci-object-storage/out/*
 
 # Logs
 *.log

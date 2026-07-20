@@ -103,6 +103,7 @@ async function buildOutputFiles(filesDefinition, groupBridge, inputData) {
         outputFiles.push({
             name: fileName,
             format: 'csv',
+            includeHeader: fileDefinition.includeHeader !== false,
             rows,
         });
     }
@@ -136,6 +137,7 @@ async function buildOutputRecords(fileName, sectionDefinition, groupBridge, inpu
     delete fieldDefinitions.group;
     delete fieldDefinitions.mode;
     delete fieldDefinitions.format;
+    delete fieldDefinitions.includeHeader;
 
     const records = [];
 
