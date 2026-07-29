@@ -282,6 +282,32 @@ files:
       format: currency
 ```
 
+#### Lookup Mapping
+
+`lookup` lets you map a source value to a different output value. It works alongside `from`.
+
+Example:
+
+```yaml
+files:
+  output.csv:
+    file_type:
+      from: extension
+      lookup:
+        txt: text
+        csv: comma-separated-value
+        default: unknown
+```
+
+In this example, if the value of the column 'extension' in the source file is 'csv', then the lookup will put the corresponding lookup value (comma-separated-value) is placed in the 'file_type' column in the output file.
+
+Behavior:
+
+- The source value is resolved first (`from`, `expr`, `fromGroup`, etc.).
+- If that value exists as a key in `lookup`, the mapped value is used.
+- If there is no key match and `default` exists, `default` is used.
+- If there is no key match and no `default`, the original value is kept.
+
 #### Date Transform
 
 The `ddmmyyyy_to_yyyymmdd` transform accepts both padded and abbreviated dates.

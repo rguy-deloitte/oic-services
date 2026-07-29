@@ -249,6 +249,10 @@ async function resolveSourceValue(fieldDefinition, context) {
 function applyFieldModifiers(fieldDefinition, value) {
 	let result = value;
 
+	if (fieldDefinition.lookup) {
+		result = applyLookup(fieldDefinition.lookup, result);
+	}
+
 	if (fieldDefinition.transform) {
 		result = applyTransform(fieldDefinition.transform, result);
 	}
@@ -258,6 +262,25 @@ function applyFieldModifiers(fieldDefinition, value) {
 	}
 
 	return result;
+}
+
+// Maps input values to output values using a simple key/value object.
+function applyLookup(lookupDefinition, value) {
+	if (!lookupDefinition || typeof lookupDefinition !== 'object' || Array.isArray(lookupDefinition)) {
+		throw new Error('lookup must be an object');
+	}
+
+	const lookupKey = value === null || value === undefined ? '' : String(value);
+
+	if (Object.prototype.hasOwnProperty.call(lookupDefinition, lookupKey)) {
+		return lookupDefinition[lookupKey];
+	}
+
+	if (Object.prototype.hasOwnProperty.call(lookupDefinition, 'default')) {
+		return lookupDefinition.default;
+	}
+
+	return value;
 }
 
 function resolveSequenceValue(sequenceDefinition, context) {
