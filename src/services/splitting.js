@@ -304,6 +304,29 @@ function applyTransform(transformName, value) {
 			return parsedDate.format('YYYY/MM/DD');
 		}
 
+		case 'mmddyyyy_to_yyyymmdd': {
+			if (!value) {
+				return '';
+			}
+
+			const parsedDate = dayjs(String(value), [
+				'MM/DD/YYYY',
+				'M/D/YYYY',
+				'MM/D/YYYY',
+				'M/DD/YYYY',
+				'MM/DD/YY',
+				'M/D/YY',
+				'MM/D/YY',
+				'M/DD/YY',
+			], true);
+
+			if (!parsedDate.isValid()) {
+				throw new Error(`Invalid date value: ${value}`);
+			}
+
+			return parsedDate.format('YYYY/MM/DD');
+		}
+
 		default:
 			throw new Error(`Unsupported transform: ${transformName}`);
 	}
