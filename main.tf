@@ -65,6 +65,17 @@ resource "oci_objectstorage_bucket" "row_splitter_bucket" {
   versioning = "Disabled"
 }
 
+resource "oci_streaming_stream_pool" "oics_event_stream_pool" {
+  compartment_id = var.compartment_id
+  name           = "oic-services-event-stream-pool"
+}
+
+resource "oci_streaming_stream" "oics_object_create_stream" {
+  stream_pool_id = oci_streaming_stream_pool.oics_event_stream_pool.id
+  name           = "oic-services-object-create-events"
+  partitions     = 1
+}
+
 resource "oci_functions_application" "oics_fnapplication" {
   compartment_id = var.compartment_id
   display_name   = "oic-services-application"
@@ -137,6 +148,35 @@ resource "oci_events_rule" "oics_row_splitter_inbound_rule" {
   description = "Rule to send createObject events from the 'in' directory of the ${oci_objectstorage_bucket.row_splitter_bucket.name} to the ${oci_functions_function.oics_row_splitter_function.display_name} function"
 }
 
+resource "oci_events_rule" "oics_object_create_to_stream_rule" {
+  compartment_id = var.compartment_id
+  display_name   = "oic-services-object-create-to-stream"
+  is_enabled     = true
+
+  actions {
+    action {
+      action_type = "OSS"
+      is_enabled  = true
+      stream_id   = oci_streaming_stream.oics_object_create_stream.id
+    }
+  }
+
+  condition_details {
+    event_types = [
+      "com.oraclecloud.objectstorage.createobject",
+    ]
+    data = jsonencode({
+      "compartmentId": var.compartment_id,
+      "resourceName": "out/*",
+      "additionalDetails": {
+        "bucketId": oci_objectstorage_bucket.row_splitter_bucket.bucket_id
+      }
+    })
+  }
+
+  description = "Rule to send createObject events from the configured prefix of ${oci_objectstorage_bucket.row_splitter_bucket.name} to OCI Streaming"
+}
+
 resource "oci_identity_dynamic_group" "oics-functions-dynamic-group" {
   compartment_id = var.tenancy_ocid
   description = "Dynamic group for OIC Services functions"
@@ -149,4 +189,13 @@ resource "oci_identity_policy" "oics-functions-policy" {
   description = "Policy to allow OIC Services functions to manage objects in the ${oci_objectstorage_bucket.row_splitter_bucket.name} bucket"
   name = "oic-services-functions-policy"
   statements = ["allow dynamic-group ${oci_identity_dynamic_group.oics-functions-dynamic-group.name} to manage objects in compartment id ${var.compartment_id} where all {target.bucket.name='${oci_objectstorage_bucket.row_splitter_bucket.name}'}"]
+}
+
+resource "oci_identity_policy" "oics-events-stream-policy" {
+  compartment_id = var.compartment_id
+  description    = "Policy to allow Events service to publish object create events to stream"
+  name           = "oic-services-events-stream-policy"
+  statements     = [
+    "allow service cloudEvents to use stream-push in compartment id ${var.compartment_id} where target.stream.id='${oci_streaming_stream.oics_object_create_stream.id}'"
+  ]
 }
