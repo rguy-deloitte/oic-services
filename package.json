@@ -1,22 +1,16 @@
 {
 	"name": "oic-services",
+	"private": true,
 	"version": "1.0.0",
-	"description": "Function to split structured data into FBDI format",
-	"main": "func.js",
-	"author": "",
-	"license": "Apache-2.0",
-	"dependencies": {
-		"@fnproject/fdk": ">=0.0.98",
-		"dayjs": "^1.11.21",
-		"jexl": "^2.3.0",
-		"js-yaml": "^5.2.1",
-		"jszip": "^3.10.1",
-		"oci-common": "^2.132.0",
-		"oci-objectstorage": "^2.132.0",
-		"xlsx": "^0.18.5",
-		"yaml": "^2.9.0"
+	"description": "OIC Services repository for multiple applications",
+	"workspaces": [
+		"apps/*"
+	],
+	"scripts": {
+		"build:row-splitter": "set -a && . ./.env && set +a && docker buildx bake -f docker-bake.hcl row-splitter",
+		"deploy:row-splitter": "set -a && . ./.env && set +a && docker buildx bake -f docker-bake.hcl row-splitter --push",
+		"build:all": "set -a && . ./.env && set +a && docker buildx bake -f docker-bake.hcl",
+		"deploy:all": "set -a && . ./.env && set +a && docker buildx bake -f docker-bake.hcl --push"
 	},
-	"overrides": {
-		"whatwg-url": "17.1.0"
-	}
+	"packageManager": "npm@10.0.0"
 }
