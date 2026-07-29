@@ -38,6 +38,12 @@ resource "oci_core_service_gateway" "oics_service_gateway" {
   vcn_id = oci_core_vcn.oics_vcn.id
 }
 
+resource "oci_core_nat_gateway" "oics_nat_gateway" {
+  compartment_id = var.compartment_id
+  vcn_id         = oci_core_vcn.oics_vcn.id
+  display_name   = "oic-services-nat-gateway"
+}
+
 resource "oci_core_default_route_table" "default-route-table" {
   compartment_id = var.compartment_id
   manage_default_resource_id = oci_core_vcn.oics_vcn.default_route_table_id
@@ -46,6 +52,12 @@ resource "oci_core_default_route_table" "default-route-table" {
     destination_type  = "SERVICE_CIDR_BLOCK"
     destination = "all-lhr-services-in-oracle-services-network"
     network_entity_id = oci_core_service_gateway.oics_service_gateway.id
+  }
+
+  route_rules {
+    destination       = "0.0.0.0/0"
+    destination_type  = "CIDR_BLOCK"
+    network_entity_id = oci_core_nat_gateway.oics_nat_gateway.id
   }
 }
 
@@ -80,6 +92,30 @@ resource "oci_functions_function" "oics_row_splitter_function" {
   display_name   = "row-splitter-function"
   image          = var.row_splitter_image_path
   memory_in_mbs  = 128
+
+  trace_config {
+    is_enabled = true
+  }
+}
+
+resource "oci_functions_function" "oics_integration_trigger_function" {
+  application_id = oci_functions_application.oics_fnapplication.id
+  display_name   = "integration-trigger-function"
+  image          = var.integration_trigger_image_path
+  memory_in_mbs  = 128
+
+  config = {
+    OIC_TRIGGER_URL   = var.oic_trigger_url
+    OIC_IDCS_BASE_URL = var.oic_idcs_base_url
+    OIC_CLIENT_ID     = var.oic_client_id
+    OIC_CLIENT_SECRET = var.oic_client_secret
+    OIC_REFRESH_TOKEN = var.oic_refresh_token
+    OIC_SCOPE         = var.oic_scope
+    OIC_TENANT_NAME   = var.oic_tenant_name
+    OIC_TOKEN_URL     = var.oic_token_url
+    OIC_ACCESS_TOKEN  = var.oic_access_token
+    OIC_TIMEOUT_MS    = tostring(var.oic_timeout_ms)
+  }
 
   trace_config {
     is_enabled = true

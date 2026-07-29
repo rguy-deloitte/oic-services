@@ -1,0 +1,11 @@
+{
+  "name": "integration-trigger",
+  "version": "1.0.0",
+  "description": "OCI Function to trigger Oracle Integration Cloud REST integrations",
+  "main": "func.js",
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@fnproject/fdk": ">=0.0.98"
+  }
+}

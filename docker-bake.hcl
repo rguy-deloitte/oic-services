@@ -10,3 +10,9 @@ target "row-splitter" {
   platforms = ["linux/amd64"]
   tags = ["lhr.ocir.io/${REPOSITORY_NAMESPACE}/row-splitter:latest"]
 }
+
+target "integration-trigger" {
+  context = "apps/integration-trigger"
+  platforms = ["linux/amd64"]
+  tags = ["lhr.ocir.io/${REPOSITORY_NAMESPACE}/integration-trigger:latest"]
+}
