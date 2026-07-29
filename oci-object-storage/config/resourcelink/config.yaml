@@ -3,9 +3,11 @@ groups:
     groupBy:
       - Effective Date
       - Transaction Type
+      - Business Unit
+      - Account
     key:
       prefix: LCKUKHR
-      start: 10000000000000
+      start: 1000000005000
     count:
       start: 1
 
@@ -21,24 +23,28 @@ files:
     TRANSACTION_NUMBER:
       fromGroup: transaction.key
     EVENT_TYPE_CODE:
-      from: Transaction Type
+      value: LTN_RSRCE_LINK
     LEDGER_NAME:
       value: UK ACTUALS GBP Apr
     TRANSACTION_DATE:
       from: Effective Date
-      transform: ddmmyyyy_to_yyyymmdd
+      transform: mmddyyyy_to_yyyymmdd
     
     repeat:
       - prefix: Character
         start: 1
         end: 50
         fields:
+          EVENT_TYPE:
+            value: LOCKTON RESOURCE LINK
           REVERSAL_FLAG:
             value: N
           SOURCE_SYSTEM_NAME:
             value: UKResourceLink
           SOURCE_SYSTEM_FILE_NAME:
             fromRoot: basename
+          TRANS_TYPE:
+            from: Transaction Type
 
       - prefix: Number
         end: 10
@@ -65,31 +71,38 @@ files:
         fields:
           DEFAULT_CURRENCY:
             from: Currency
-          Business Unit:
-            from: Business Unit
-          Account:
-            from: Account
-          Chartfield2:
-            from: Chartfield2
-          Department:
-            from: Department
-          Operating Unit:
-            from: Operating Unit
-          Affiliate:
-            from: Affiliate
-          Project Code:
-            from: Project Code
-          Description:
+          DESCRIPTION:
             from: Description
+          ACCOUNT:
+            from: Account
+          CHARTFIELD_2:
+            from: Chartfield2
+          BUSINESS_UNIT:
+            from: Business Unit
+          OPERATING_UNIT:
+            from: Operating Unit
+          DEPARTMENT:
+            from: Department
+          AFFILIATE:
+            from: Affiliate
+          PROJECT_CODE:
+            from: Project Code
 
       - prefix: Number
         end: 30
         fields:
           DEFAULT_AMOUNT:
             from: Amount
+          LINE_NO:
 
       - prefix: Date
         end: 10
 
       - prefix: Long Character
         end: 5
+
+  Metadata_LTN_RSRCE_LINK.txt:
+    format: txt
+    content: |
+      Metadata version number : 3
+      Application Short Name : LTN_RSRCE_LINK
