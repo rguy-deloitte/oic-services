@@ -23,7 +23,10 @@ files:
     TRANSACTION_NUMBER:
       fromGroup: transaction.key
     EVENT_TYPE_CODE:
-      value: LTN_RSRCE_LINK
+      from: Transaction Type
+      lookup:
+        Headcount: LTN_RSRCE_LINK_HC
+        Payroll: LTN_RSRCE_LINK
     LEDGER_NAME:
       value: UK ACTUALS GBP Apr
     TRANSACTION_DATE:
@@ -36,7 +39,10 @@ files:
         end: 50
         fields:
           EVENT_TYPE:
-            value: LOCKTON RESOURCE LINK
+            from: Transaction Type
+            lookup:
+              Headcount: LOCKTON RESOURCE LINK HEADCOUNT
+              Payroll: LOCKTON RESOURCE LINK PAYROLL
           REVERSAL_FLAG:
             value: N
           SOURCE_SYSTEM_NAME:
