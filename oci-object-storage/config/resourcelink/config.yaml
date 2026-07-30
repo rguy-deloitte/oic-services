@@ -1,10 +1,7 @@
 groups:
   transaction:
     groupBy:
-      - Effective Date
       - Transaction Type
-      - Business Unit
-      - Account
     key:
       prefix: LCKUKHR
       start: 1000000005000
@@ -31,7 +28,7 @@ files:
       value: UK ACTUALS GBP Apr
     TRANSACTION_DATE:
       from: Effective Date
-      transform: mmddyyyy_to_yyyymmdd
+      transform: ddmmyyyy_to_yyyymmdd
     
     repeat:
       - prefix: Character
@@ -99,6 +96,7 @@ files:
         fields:
           DEFAULT_AMOUNT:
             from: Amount
+            format: currency
           LINE_NO:
 
       - prefix: Date
