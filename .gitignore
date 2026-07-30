@@ -4,8 +4,8 @@
 /build
 
 # Sample Data
-oci-object-storage/in/*
-oci-object-storage/out/*
+oci-object-storage/row-splitter/source/*
+oci-object-storage/row-splitter/processed/*
 
 # Logs
 *.log

@@ -12,8 +12,8 @@ const handler = async (event = {}) => {
   }
 
   // Check that the objectName starts with "in/" and throw an error if it doesn't
-  if (!sourceFilePath.startsWith('in/')) {
-    throw new Error(`Object name must start with "in/", but got: ${sourceFilePath}`);
+  if (!sourceFilePath.startsWith('row-splitter/source/')) {
+    throw new Error(`Object name must start with "row-splitter/source/", but got: ${sourceFilePath}`);
   }
 
   // const validateFirstLevelSubFolderName = /^\/?[^/]+\/in\//;
@@ -24,11 +24,11 @@ const handler = async (event = {}) => {
 
   console.log(`v0.0.8 - Processing file: ${sourceFilePath}`);
   
-  // Output directory is objectName with "in/" replaced by "out/" and filename removed, e.g. "in/config1/data.csv" -> "out/config1/"
-  let outputDirectory = sourceFilePath.replace(/^in\//, 'out/').replace(/\/[^\/]+$/, '/');
+  // Output directory is objectName with "row-splitter/source/" replaced by "row-splitter/processed/" and filename removed, e.g. "row-splitter/source/config1/data.csv" -> "row-splitter/processed/config1/"
+  let outputDirectory = sourceFilePath.replace(/^row-splitter\/source\//, 'row-splitter/processed/').replace(/\/[^\/]+$/, '/');
 
-  // Config path is objectName with "in/" replaced by "config/" and filename replaced, e.g. "in/config1/data.csv" -> "config/config1/config.yaml"
-  let configFilePath = sourceFilePath.replace(/^in\//, 'config/').replace(/\/[^\/]+$/, '/config.yaml');
+  // Config path is objectName with "row-splitter/source/" replaced by "row-splitter/config/" and filename replaced, e.g. "row-splitter/source/config1/data.csv" -> "row-splitter/config/config1/config.yaml"
+  let configFilePath = sourceFilePath.replace(/^row-splitter\/source\//, 'row-splitter/config/').replace(/\/[^\/]+$/, '/config.yaml');
 
   let configFile;
   let structuredFile;

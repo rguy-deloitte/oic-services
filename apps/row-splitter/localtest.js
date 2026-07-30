@@ -7,7 +7,7 @@ const { handler } = require('./func.js');
 // - event.data.additionalDetailss.namespace
 const mockEvent = {
   data: {
-    resourceName: 'in/test/ziphq-sample-data.csv',
+    resourceName: 'row-splitter/source/test/ziphq-sample-data.csv',
     additionalDetails: {
       bucketName: 'oci-object-storage',
       namespace: 'localtest'
