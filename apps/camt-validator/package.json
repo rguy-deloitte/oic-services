@@ -1,0 +1,14 @@
+{
+	"name": "camt-validator",
+	"version": "1.0.0",
+	"description": "CAMT.053 Validator OCI Function",
+	"main": "func.js",
+	"author": "",
+	"license": "Apache-2.0",
+	"dependencies": {
+		"@fnproject/fdk": ">=0.0.98",
+		"fast-xml-parser": "^4.5.3",
+		"oci-common": "^2.132.0",
+		"oci-objectstorage": "^2.132.0"
+	}
+}

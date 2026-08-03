@@ -1,13 +1,13 @@
 const { handler } = require('./func.js');
 
-// 2. Construct a valid event object
+// Construct a valid event object
 // Based on your handler's logic:
 // - event.data.resourceName
 // - event.data.additionalDetails.bucketName
-// - event.data.additionalDetailss.namespace
+// - event.data.additionalDetails.namespace
 const mockEvent = {
   data: {
-    resourceName: 'row-splitter/source/test/ziphq-sample-data.csv',
+    resourceName: 'camt-validator/source/test/example_CAMT.053.001.02.xml',
     additionalDetails: {
       bucketName: 'oci-object-storage',
       namespace: 'localtest'
@@ -22,7 +22,7 @@ const mockEvent = {
 
 // 3. Call the handler function
 async function executeHandler() {
-  console.log('Calling the row-splitter handler with a mock event...');
+  console.log('Calling the camt-validator handler with a mock event...');
   await handler(mockEvent);
   console.log('Handler call completed.');
 }
