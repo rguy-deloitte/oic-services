@@ -356,10 +356,10 @@ The function expects these Object Storage event fields:
 
 ### To run the RowSplitter function locally
 
-Configure `localtest.js` as follows:
+Configure `localtest.ts` as follows:
 
 - `resourceName` (local source file)
 - `additionalDetails.bucketName` (local folder)
 - `additionalDetails.namespace: 'localtest'` (already done)
 
-Then run: `node localtest.js`
+Then run: `npm run localtest`

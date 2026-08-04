@@ -1,3 +1,4 @@
+// @ts-nocheck
 const path = require('node:path');
 const common = require('oci-common');
 const objectStorage = require('oci-objectstorage');
@@ -402,7 +403,7 @@ async function bodyToBuffer(value) {
 
 // Convert a worksheet-like 2D array into the project's normalized row format.
 //
-function normalizeWorksheetStructure(structure = {}) {
+function normalizeWorksheetStructure(structure: Record<string, any> = {}) {
     return {
         headerRowPresent: structure?.headerRowPresent === true,
         ignoreHeaderRow: structure?.ignoreHeaderRow === true,
@@ -540,6 +541,7 @@ async function uploadObjectToObjectStorage(normalizedOutputDirectory, zipFileNam
     if (namespaceName == 'localtest') {
         const fs = require('node:fs').promises;
         const filePath = path.join(normalizedOutputDirectory, zipFileName);
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
         await fs.writeFile(filePath, content);
     } else {
         const client = await getObjectStorageClient();
@@ -645,3 +647,5 @@ module.exports = {
     saveZippedOutputFiles,
     saveTriggerFile,
 };
+
+export {};

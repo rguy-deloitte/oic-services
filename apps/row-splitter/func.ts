@@ -2,10 +2,20 @@ const fdk = require('@fnproject/fdk');
 const { loadStructuredFile, loadConfigFile, saveZippedOutputFiles, saveTriggerFile } = require('./src/services/files');
 const { applySplitting } = require('./src/services/splitting');
 
-const handler = async (event = {}) => {
-  let sourceFilePath = event?.data?.resourceName;
-  const bucketName = event?.data?.additionalDetails?.bucketName;
-  const namespaceName = event?.data?.additionalDetails?.namespace;
+type ObjectStorageEvent = {
+  data?: {
+    resourceName?: string;
+    additionalDetails?: {
+      bucketName?: string;
+      namespace?: string;
+    };
+  };
+};
+
+const handler = async (event: ObjectStorageEvent = {}) => {
+  let sourceFilePath: string | undefined = event?.data?.resourceName;
+  const bucketName: string | undefined = event?.data?.additionalDetails?.bucketName;
+  const namespaceName: string | undefined = event?.data?.additionalDetails?.namespace;
 
   if (!sourceFilePath || !bucketName || !namespaceName) {
     throw new Error('Object Storage event must include data.resourceName, data.additionalDetails.bucketName, and data.additionalDetails.namespace');
@@ -16,22 +26,16 @@ const handler = async (event = {}) => {
     throw new Error(`Object name must start with "row-splitter/source/", but got: ${sourceFilePath}`);
   }
 
-  // const validateFirstLevelSubFolderName = /^\/?[^/]+\/in\//;
-  // const validateSecondLevelSubFolderName = /^\/?[^/]+\/[^/]+\/in\//;
-  // if (!sourceFilePath.match(validateFirstLevelSubFolderName)) {
-  //   throw new Error(`Object name must start with "in/", but got: ${sourceFilePath}`);
-  // }
-
-  console.log(`v0.0.8 - Processing file: ${sourceFilePath}`);
+  console.log(`v0.0.9 - Processing file: ${sourceFilePath}`);
   
   // Output directory is objectName with "row-splitter/source/" replaced by "row-splitter/processed/" and filename removed, e.g. "row-splitter/source/config1/data.csv" -> "row-splitter/processed/config1/"
-  let outputDirectory = sourceFilePath.replace(/^row-splitter\/source\//, 'row-splitter/processed/').replace(/\/[^\/]+$/, '/');
+  let outputDirectory: string = sourceFilePath.replace(/^row-splitter\/source\//, 'row-splitter/processed/').replace(/\/[^\/]+$/, '/');
 
   // Config path is objectName with "row-splitter/source/" replaced by "row-splitter/config/" and filename replaced, e.g. "row-splitter/source/config1/data.csv" -> "row-splitter/config/config1/config.yaml"
-  let configFilePath = sourceFilePath.replace(/^row-splitter\/source\//, 'row-splitter/config/').replace(/\/[^\/]+$/, '/config.yaml');
+  let configFilePath: string = sourceFilePath.replace(/^row-splitter\/source\//, 'row-splitter/config/').replace(/\/[^\/]+$/, '/config.yaml');
 
-  let configFile;
-  let structuredFile;
+  let configFile: Record<string, any>;
+  let structuredFile: Record<string, any>;
 
   if (namespaceName === 'localtest') {
     const path = require('path');
@@ -69,3 +73,5 @@ module.exports = { handler };
 if (require.main === module) {
   fdk.handle(handler);
 }
+
+export {};

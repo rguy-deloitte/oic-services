@@ -124,7 +124,7 @@ resource "oci_events_rule" "oics_row_splitter_inbound_rule" {
     ]
     data = jsonencode({
       "compartmentId": var.compartment_id,
-      "resourceName": "in/*"
+      "resourceName": "row-splitter/source/*"
       "additionalDetails": {
         "bucketId": oci_objectstorage_bucket.row_splitter_bucket.bucket_id
       }
@@ -134,7 +134,7 @@ resource "oci_events_rule" "oics_row_splitter_inbound_rule" {
   is_enabled = true
 
   #Optional
-  description = "Rule to send createObject events from the 'in' directory of the ${oci_objectstorage_bucket.row_splitter_bucket.name} to the ${oci_functions_function.oics_row_splitter_function.display_name} function"
+  description = "Rule to send createObject events from the 'source' directory of the ${oci_objectstorage_bucket.row_splitter_bucket.name} to the ${oci_functions_function.oics_row_splitter_function.display_name} function"
 }
 
 resource "oci_identity_dynamic_group" "oics-functions-dynamic-group" {

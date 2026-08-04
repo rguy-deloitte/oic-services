@@ -1,4 +1,4 @@
-const { handler } = require('./func.js');
+const { handler } = require('./func');
 
 // 2. Construct a valid event object
 // Based on your handler's logic:
@@ -7,7 +7,7 @@ const { handler } = require('./func.js');
 // - event.data.additionalDetailss.namespace
 const mockEvent = {
   data: {
-    resourceName: 'row-splitter/source/test/ziphq-sample-data.csv',
+    resourceName: 'row-splitter/source/test/concur-ap-data.csv',
     additionalDetails: {
       bucketName: 'oci-object-storage',
       namespace: 'localtest'
@@ -29,3 +29,5 @@ async function executeHandler() {
 
 // Execute the function that calls your handler
 executeHandler();
+
+export {};

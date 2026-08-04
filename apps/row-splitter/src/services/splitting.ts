@@ -1,3 +1,4 @@
+// @ts-nocheck
 const dayjs = require('dayjs');
 const customParseFormat = require('dayjs/plugin/customParseFormat');
 const { Jexl } = require('jexl');
@@ -77,7 +78,7 @@ async function applySplitting(inputData, splitDefinition) {
     };
 }
 
-async function buildOutputFiles(filesDefinition, groupBridge, inputData) {
+async function buildOutputFiles(filesDefinition: Record<string, any>, groupBridge, inputData) {
     if (!filesDefinition) {
         return [];
     }
@@ -591,3 +592,5 @@ function groupRows(rows, groupByFields) {
 module.exports = {
 	applySplitting,
 };
+
+export {};
