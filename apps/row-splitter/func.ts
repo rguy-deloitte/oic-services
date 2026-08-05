@@ -1,6 +1,8 @@
+import type { RowSplitterConfig, TabularFile } from './src/types';
+import { loadStructuredFile, loadConfigFile, saveZippedOutputFiles, saveTriggerFile } from './src/services/files';
+import { applySplitting } from './src/services/splitting';
+
 const fdk = require('@fnproject/fdk');
-const { loadStructuredFile, loadConfigFile, saveZippedOutputFiles, saveTriggerFile } = require('./src/services/files');
-const { applySplitting } = require('./src/services/splitting');
 
 type ObjectStorageEvent = {
   data?: {
@@ -34,8 +36,8 @@ const handler = async (event: ObjectStorageEvent = {}) => {
   // Config path is objectName with "row-splitter/source/" replaced by "row-splitter/config/" and filename replaced, e.g. "row-splitter/source/config1/data.csv" -> "row-splitter/config/config1/config.yaml"
   let configFilePath: string = sourceFilePath.replace(/^row-splitter\/source\//, 'row-splitter/config/').replace(/\/[^\/]+$/, '/config.yaml');
 
-  let configFile: Record<string, any>;
-  let structuredFile: Record<string, any>;
+  let configFile: RowSplitterConfig;
+  let structuredFile: TabularFile;
 
   if (namespaceName === 'localtest') {
     const path = require('path');

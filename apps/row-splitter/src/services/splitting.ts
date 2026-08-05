@@ -1,11 +1,70 @@
-// @ts-nocheck
+import type {
+	FieldDefinition,
+	FieldDefinitionObject,
+	GeneratedOutputFile,
+	LookupMap,
+	OutputFileDefinition,
+	RowSplitterConfig,
+	SequenceDefinition,
+	TabularFile,
+	TabularRow,
+} from '../types';
+
 const dayjs = require('dayjs');
 const customParseFormat = require('dayjs/plugin/customParseFormat');
 const { Jexl } = require('jexl');
 
 dayjs.extend(customParseFormat);
 
-function parseNumericValue(value) {
+interface GroupSequenceConfig {
+	prefix: string;
+	start: number;
+}
+
+interface GroupRecord {
+	key: string;
+	rows: TabularRow[];
+	groupIndex?: number;
+	groupKey?: string;
+	rowCounts?: string[];
+}
+
+interface GroupState {
+	name: string;
+	groupBy: string[];
+	keyConfig: GroupSequenceConfig | null;
+	countConfig: GroupSequenceConfig | null;
+	groups: GroupRecord[];
+	rowToGroup: Map<TabularRow, { group: GroupRecord; rowIndex: number }>;
+}
+
+interface GroupDefinition {
+	groupBy: string[];
+	key?: Record<string, unknown>;
+	count?: Record<string, unknown>;
+}
+
+interface GroupBridge {
+	groupStates: Record<string, GroupState>;
+	primaryGroups: GroupRecord[];
+	primaryGroupName: string;
+}
+
+interface SplitContext {
+	root: TabularFile;
+	row: TabularRow;
+	groupContext: {
+		group: GroupRecord;
+		groupIndex: number;
+		header: Record<string, string>;
+		groupStates: Record<string, GroupState>;
+		primaryGroupName: string;
+	};
+	lineIndex: number | null;
+	currentOutput?: Record<string, string>;
+}
+
+function parseNumericValue(value: unknown): number {
 	if (value === '' || value === null || value === undefined) {
 		return 0;
 	}
@@ -54,11 +113,11 @@ const jexl = createExpressionEngine();
 function createExpressionEngine() {
 	const engine = new Jexl();
 
-	engine.addFunction('number', (value) => {
+	engine.addFunction('number', (value: unknown) => {
 		return parseNumericValue(value);
 	});
 
-	engine.addFunction('round', (value, precision = 0) => {
+	engine.addFunction('round', (value: unknown, precision = 0) => {
 		const factor = 10 ** precision;
 		return Math.round((parseNumericValue(value) + Number.EPSILON) * factor) / factor;
 	});
@@ -67,7 +126,7 @@ function createExpressionEngine() {
 }
 
 // Apply the provided splitting definition to the input data, producing output files.
-async function applySplitting(inputData, splitDefinition) {
+async function applySplitting(inputData: TabularFile, splitDefinition: RowSplitterConfig): Promise<{ files: GeneratedOutputFile[] }> {
     const rows = inputData.rows || [];
     const groupBridge = splitDefinition.groups
         ? buildGroupDefinitions(rows, splitDefinition)
@@ -78,7 +137,11 @@ async function applySplitting(inputData, splitDefinition) {
     };
 }
 
-async function buildOutputFiles(filesDefinition: Record<string, any>, groupBridge, inputData) {
+async function buildOutputFiles(
+	filesDefinition: Record<string, OutputFileDefinition> | undefined,
+	groupBridge: GroupBridge,
+	inputData: TabularFile,
+): Promise<GeneratedOutputFile[]> {
     if (!filesDefinition) {
         return [];
     }
@@ -87,14 +150,14 @@ async function buildOutputFiles(filesDefinition: Record<string, any>, groupBridg
         throw new Error('files must be an object');
     }
 
-    const outputFiles = [];
+	const outputFiles: GeneratedOutputFile[] = [];
 
-    for (const [fileName, fileDefinition] of Object.entries(filesDefinition)) {
+	for (const [fileName, fileDefinition] of Object.entries(filesDefinition)) {
         if (fileDefinition.format === 'txt') {
             outputFiles.push({
                 name: fileName,
                 format: 'txt',
-                content: fileDefinition.content,
+				content: String(fileDefinition.content ?? ''),
             });
             continue;
         }
@@ -112,7 +175,12 @@ async function buildOutputFiles(filesDefinition: Record<string, any>, groupBridg
     return outputFiles;
 }
 
-async function buildOutputRecords(fileName, sectionDefinition, groupBridge, inputData) {
+async function buildOutputRecords(
+	fileName: string,
+	sectionDefinition: OutputFileDefinition,
+	groupBridge: GroupBridge,
+	inputData: TabularFile,
+): Promise<Record<string, string>[]> {
     if (!sectionDefinition) {
         return [];
     }
@@ -122,7 +190,7 @@ async function buildOutputRecords(fileName, sectionDefinition, groupBridge, inpu
     }
 
     const groupName = sectionDefinition.group ?? groupBridge.primaryGroupName;
-    const mode = sectionDefinition.mode ?? getDefaultOutputMode(fileName);
+	const mode = sectionDefinition.mode ?? getDefaultOutputMode();
     const groupState = groupBridge.groupStates[groupName];
 
     if (!groupState) {
@@ -134,13 +202,13 @@ async function buildOutputRecords(fileName, sectionDefinition, groupBridge, inpu
         );
     }
 
-    const fieldDefinitions = { ...sectionDefinition };
+	const fieldDefinitions = { ...sectionDefinition } as Record<string, FieldDefinition>;
     delete fieldDefinitions.group;
     delete fieldDefinitions.mode;
     delete fieldDefinitions.format;
     delete fieldDefinitions.includeHeader;
 
-    const records = [];
+	const records: Record<string, string>[] = [];
 
     for (const [groupIndex, group] of groupState.groups.entries()) {
         const groupContext = {
@@ -180,7 +248,12 @@ function getDefaultOutputMode() {
     return 'row';
 }
 
-function createSplittingContext(root, row, groupContext, lineIndex) {
+function createSplittingContext(
+	root: TabularFile,
+	row: TabularRow,
+	groupContext: SplitContext['groupContext'],
+	lineIndex: number | null,
+): SplitContext {
 	return {
 		root,
 		row,
@@ -190,8 +263,11 @@ function createSplittingContext(root, row, groupContext, lineIndex) {
 }
 
 // Each output field is resolved in YAML order so the generated object keeps the same column order as the splitting definition.
-async function buildSplitObject(fieldDefinitions, context) {
-	const splitObject = {};
+async function buildSplitObject(
+	fieldDefinitions: Record<string, FieldDefinition>,
+	context: SplitContext,
+): Promise<Record<string, string>> {
+const splitObject: Record<string, string> = {};
 
 	for (const [fieldName, fieldDefinition] of Object.entries(fieldDefinitions)) {
 		splitObject[fieldName] = await resolveFieldValue(fieldDefinition, {
@@ -204,7 +280,7 @@ async function buildSplitObject(fieldDefinitions, context) {
 }
 
 // Get source value and apply any transforms or formatting
-async function resolveFieldValue(fieldDefinition, context) {
+async function resolveFieldValue(fieldDefinition: FieldDefinition, context: SplitContext): Promise<string> {
 	if (fieldDefinition === null || fieldDefinition === undefined) {
 		return '';
 	}
@@ -219,7 +295,7 @@ async function resolveFieldValue(fieldDefinition, context) {
 	return String(finalValue);
 }
 
-async function resolveSourceValue(fieldDefinition, context) {
+async function resolveSourceValue(fieldDefinition: FieldDefinitionObject, context: SplitContext): Promise<unknown> {
 	if (Object.prototype.hasOwnProperty.call(fieldDefinition, 'value')) {
 		return fieldDefinition.value;
 	}
@@ -247,7 +323,7 @@ async function resolveSourceValue(fieldDefinition, context) {
 	return '';
 }
 
-function applyFieldModifiers(fieldDefinition, value) {
+function applyFieldModifiers(fieldDefinition: FieldDefinitionObject, value: unknown): unknown {
 	let result = value;
 
 	if (fieldDefinition.lookup) {
@@ -266,7 +342,7 @@ function applyFieldModifiers(fieldDefinition, value) {
 }
 
 // Maps input values to output values using a simple key/value object.
-function applyLookup(lookupDefinition, value) {
+function applyLookup(lookupDefinition: LookupMap, value: unknown): unknown {
 	if (!lookupDefinition || typeof lookupDefinition !== 'object' || Array.isArray(lookupDefinition)) {
 		throw new Error('lookup must be an object');
 	}
@@ -284,7 +360,7 @@ function applyLookup(lookupDefinition, value) {
 	return value;
 }
 
-function resolveSequenceValue(sequenceDefinition, context) {
+function resolveSequenceValue(sequenceDefinition: string | SequenceDefinition, context: SplitContext): string {
 	const sequence = typeof sequenceDefinition === 'string'
 		? { type: sequenceDefinition }
 		: sequenceDefinition;
@@ -303,7 +379,7 @@ function resolveSequenceValue(sequenceDefinition, context) {
 	}
 }
 
-function applyTransform(transformName, value) {
+function applyTransform(transformName: string, value: unknown): string {
 	switch (transformName) {
 		case 'ddmmyyyy_to_yyyymmdd': {
 			if (!value) {
@@ -356,7 +432,7 @@ function applyTransform(transformName, value) {
 	}
 }
 
-function applyFormat(formatName, value) {
+function applyFormat(formatName: string, value: unknown): string {
 	switch (formatName) {
 		case 'currency': {
 			const numericValue = parseNumericValue(value);
@@ -376,7 +452,7 @@ function applyFormat(formatName, value) {
 
 // Expressions can reference the current row directly, but they also get
 // structured access to root data, the current group, and the generated header.
-function buildExpressionContext(context) {
+function buildExpressionContext(context: SplitContext): Record<string, unknown> {
 	return {
 		...context.row,
 		root: context.root,
@@ -392,7 +468,7 @@ function buildExpressionContext(context) {
 	};
 }
 
-function buildDefaultGroupDefinitions(rows) {
+function buildDefaultGroupDefinitions(rows: TabularRow[]): GroupBridge {
 	const defaultGroupState = {
 		name: 'default',
 		groupBy: [],
@@ -411,8 +487,8 @@ function buildDefaultGroupDefinitions(rows) {
 	};
 }
 
-function buildGroupDefinitions(rows, splitDefinition) {
-	const groupsConfig = splitDefinition.groups;
+function buildGroupDefinitions(rows: TabularRow[], splitDefinition: RowSplitterConfig): GroupBridge {
+	const groupsConfig = splitDefinition.groups as Record<string, GroupDefinition> | undefined;
 
 	if (!groupsConfig) {
 		throw new Error('groups must be defined');
@@ -428,7 +504,7 @@ function buildGroupDefinitions(rows, splitDefinition) {
 	}
 
 	const primaryGroupName = determinePrimaryGroupName(splitDefinition, groupNames);
-	const groupStates = {};
+const groupStates: Record<string, GroupState> = {};
 
 	for (const groupName of groupNames) {
 		const groupDefinition = groupsConfig[groupName];
@@ -449,12 +525,13 @@ function buildGroupDefinitions(rows, splitDefinition) {
 			: null;
 
 		const groups = groupRows(rows, groupDefinition.groupBy);
-		const groupState = {
+		const groupState: GroupState = {
 			name: groupName,
 			groupBy: groupDefinition.groupBy,
 			keyConfig,
 			countConfig,
 			groups,
+			rowToGroup: new Map(),
 		};
 
 		assignGroupMetadata(groupState);
@@ -468,7 +545,7 @@ function buildGroupDefinitions(rows, splitDefinition) {
 	};
 }
 
-function determinePrimaryGroupName(splitDefinition, groupNames) {
+function determinePrimaryGroupName(splitDefinition: RowSplitterConfig, groupNames: string[]): string {
 	if (splitDefinition.primaryGroup) {
 		if (!groupNames.includes(splitDefinition.primaryGroup)) {
 			throw new Error(`primaryGroup must reference one of the configured groups: ${groupNames.join(', ')}`);
@@ -484,7 +561,7 @@ function determinePrimaryGroupName(splitDefinition, groupNames) {
 	throw new Error('primaryGroup is required when multiple groups are defined');
 }
 
-function assignGroupMetadata(groupState) {
+function assignGroupMetadata(groupState: GroupState): void {
 	for (const [groupIndex, group] of groupState.groups.entries()) {
 		group.groupIndex = groupIndex;
 		group.groupKey = groupState.keyConfig
@@ -501,17 +578,19 @@ function assignGroupMetadata(groupState) {
 	}
 }
 
-function normalizeGroupSequenceConfig(config, configName) {
+function normalizeGroupSequenceConfig(config: Record<string, unknown>, configName: string): GroupSequenceConfig {
 	if (!config || typeof config !== 'object' || Array.isArray(config)) {
 		throw new Error(`${configName} must be an object`);
 	}
 
-	const sequence = config.sequence ?? config;
+	const sequence = (
+		Object.prototype.hasOwnProperty.call(config, 'sequence') ? config.sequence : config
+	) as Record<string, unknown>;
 	if (!sequence || typeof sequence !== 'object' || Array.isArray(sequence)) {
 		throw new Error(`${configName} must be a sequence-like object`);
 	}
 
-	const prefix = sequence.prefix ?? '';
+	const prefix = String(sequence.prefix ?? '');
 	const start = Number(sequence.start ?? 1);
 
 	if (!Number.isInteger(start) || start < 0) {
@@ -521,7 +600,7 @@ function normalizeGroupSequenceConfig(config, configName) {
 	return { prefix, start };
 }
 
-function resolveGroupValue(fromGroupReference, context) {
+function resolveGroupValue(fromGroupReference: string, context: SplitContext): string {
 	const parts = String(fromGroupReference).split('.');
 	let groupName;
 	let keyName;
@@ -557,12 +636,12 @@ function resolveGroupValue(fromGroupReference, context) {
 			if (!groupState.keyConfig) {
 				throw new Error(`groups.${groupName} has no key definition`);
 			}
-			return rowGroupEntry.group.groupKey;
+			return rowGroupEntry.group.groupKey ?? '';
 		case 'count':
 			if (!groupState.countConfig) {
 				throw new Error(`groups.${groupName} has no count definition`);
 			}
-			return rowGroupEntry.group.rowCounts[rowGroupEntry.rowIndex] ?? '';
+			return rowGroupEntry.group.rowCounts?.[rowGroupEntry.rowIndex] ?? '';
 		default:
 			return '';
 	}
@@ -570,8 +649,8 @@ function resolveGroupValue(fromGroupReference, context) {
 
 // Grouping controls how many headers are produced. Rows in the same group share
 // one header record and then emit one line record per source row.
-function groupRows(rows, groupByFields) {
-	const groups = new Map();
+function groupRows(rows: TabularRow[], groupByFields: string[]): GroupRecord[] {
+const groups = new Map<string, GroupRecord>();
 
 	for (const row of rows) {
 		const groupKey = groupByFields.map((fieldName) => row[fieldName] || '').join('|');
@@ -589,8 +668,4 @@ function groupRows(rows, groupByFields) {
 	return Array.from(groups.values());
 }
 
-module.exports = {
-	applySplitting,
-};
-
-export {};
+export { applySplitting };
