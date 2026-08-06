@@ -348,18 +348,23 @@ Refer to the [main repository README](../../README.md) for full deployment and i
 
 ### Event Payload Requirements
 
-The function expects these Object Storage event fields:
+The deployed OCI function expects these Object Storage event fields:
 
 - `data.resourceName`
 - `data.additionalDetails.bucketName`
 - `data.additionalDetails.namespace`
 
-### To run the RowSplitter function locally
+### Local Config Testing
 
-Configure `localtest.ts` as follows:
+`npm run localtest` does not invoke the OCI function handler. It is a local config-validation tool used to test a source file and its matching `config.yaml` before uploading the config to the cloud environment.
 
-- `resourceName` (local source file)
-- `additionalDetails.bucketName` (local folder)
-- `additionalDetails.namespace: 'localtest'` (already done)
+The local test runner:
+
+1. Loads the local source file from the `oci-object-storage` folder.
+2. Loads the matching local `config.yaml`.
+3. Runs `applySplitting` directly against the source data.
+4. Writes a zip file and `done.trg` file into the local processed folder.
+
+Configure `localtest.ts` with the source object path you want to test. The script assumes the file lives within the local `oci-object-storage/row-splitter/...` structure and derives the matching config and output paths automatically.
 
 Then run: `npm run localtest`

@@ -40,13 +40,6 @@ const handler = async (event: ObjectStorageEvent = {}) => {
   let configFile: RowSplitterConfig;
   let sourceFile: TabularFile;
 
-  if (namespaceName === 'localtest') {
-    const path = require('path');
-    configFilePath = path.resolve(process.cwd(), bucketName, configFilePath);
-    sourceFilePath = path.resolve(process.cwd(), bucketName, sourceFilePath);
-    outputDirectory = path.resolve(process.cwd(), bucketName, outputDirectory);
-  }
-
   configFile = await loadConfigFile(configFilePath, bucketName, namespaceName);
   sourceFile = await loadTabularFile(sourceFilePath, bucketName, namespaceName, configFile.structure);
 

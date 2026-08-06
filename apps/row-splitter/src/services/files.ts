@@ -1,6 +1,6 @@
 import type { GeneratedOutputFile, StructureOptions, TabularFile } from '../types.js';
 import type { RowSplitterConfig } from './configurations.js';
-import { promises as fsPromises, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import JSZip from 'jszip';
 import { parse as parseYaml } from 'yaml';
@@ -12,20 +12,12 @@ import { normalizeConfigDefinition } from './configurations.js';
 
 export { normalizeConfigDefinition };
 
-export async function loadTabularFile(
+function parseTabularContent(
     filename: string,
-    bucketName: string,
-    namespaceName: string,
+    content: Buffer,
     structure?: StructureOptions,
-): Promise<TabularFile> {
+): Promise<TabularFile> | TabularFile {
     const extension = path.extname(filename).toLowerCase();
-    let content: Buffer;
-
-    if (namespaceName === 'localtest') {
-        content = await fsPromises.readFile(filename);
-    } else {
-        ({ content } = await downloadObject(filename, bucketName, namespaceName));
-    }
 
     switch (extension) {
         case '.csv':
@@ -39,14 +31,21 @@ export async function loadTabularFile(
     }
 }
 
+export async function loadTabularFile(
+    filename: string,
+    bucketName: string,
+    namespaceName: string,
+    structure?: StructureOptions,
+): Promise<TabularFile> {
+    const { content } = await downloadObject(filename, bucketName, namespaceName);
+    return parseTabularContent(filename, content, structure);
+}
+
 export async function loadConfigFile(
     configFilePath: string,
     bucketName: string,
     namespaceName: string,
 ): Promise<RowSplitterConfig> {
-    if (namespaceName === 'localtest') {
-        return normalizeConfigDefinition(jsYamlLoad(readFileSync(configFilePath, 'utf8')));
-    }
     const file = await downloadObject(configFilePath, bucketName, namespaceName);
     return normalizeConfigDefinition(parseYaml(file.content.toString('utf8')));
 }
@@ -75,10 +74,27 @@ function buildTimestampedZipName(inputObjectName: string): string {
     return `${fileName}_${timestamp}.zip`;
 }
 
-async function writeLocal(directory: string, filename: string, content: Buffer): Promise<void> {
-    const filePath = path.join(directory, filename);
-    await fsPromises.mkdir(path.dirname(filePath), { recursive: true });
-    await fsPromises.writeFile(filePath, content);
+function buildZipContent(outputFiles: GeneratedOutputFile[]): Promise<Buffer> {
+    if (!Array.isArray(outputFiles) || outputFiles.length === 0) {
+        throw new Error('At least one output file is required to save zipped output files');
+    }
+
+    const zip = new JSZip();
+
+    for (const file of outputFiles) {
+        if (!file.name) throw new Error('Each output file must include a name');
+        if (file.format === 'txt') {
+            zip.file(file.name, Buffer.from(file.content || '', 'utf8'));
+            continue;
+        }
+        if (file.format === 'csv') {
+            zip.file(file.name, buildCsvBuffer(file.rows || [], file.includeHeader !== false));
+            continue;
+        }
+        throw new Error('Unsupported output file format');
+    }
+
+    return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
 export async function saveZippedOutputFiles(
@@ -95,34 +111,11 @@ export async function saveZippedOutputFiles(
     if (!inputObjectName || typeof inputObjectName !== 'string') {
         throw new Error('inputObjectName is required to compute the output zip filename');
     }
-    if (!Array.isArray(outputFiles) || outputFiles.length === 0) {
-        throw new Error('At least one output file is required to save zipped output files');
-    }
-
     const normalizedDir = outputDirectory.endsWith('/') ? outputDirectory : `${outputDirectory}/`;
-    const zip = new JSZip();
-
-    for (const file of outputFiles) {
-        if (!file.name) throw new Error('Each output file must include a name');
-        if (file.format === 'txt') {
-            zip.file(file.name, Buffer.from(file.content || '', 'utf8'));
-            continue;
-        }
-        if (file.format === 'csv') {
-            zip.file(file.name, buildCsvBuffer(file.rows || [], file.includeHeader !== false));
-            continue;
-        }
-        throw new Error('Unsupported output file format');
-    }
-
-    const zipContent = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+    const zipContent = await buildZipContent(outputFiles);
     const zipFileName = buildTimestampedZipName(inputObjectName);
 
-    if (namespaceName === 'localtest') {
-        await writeLocal(normalizedDir, zipFileName, zipContent);
-    } else {
-        await uploadObject(normalizedDir, zipFileName, zipContent, 'application/zip', bucketName, namespaceName);
-    }
+    await uploadObject(normalizedDir, zipFileName, zipContent, 'application/zip', bucketName, namespaceName);
 }
 
 export async function saveTriggerFile(
@@ -136,9 +129,5 @@ export async function saveTriggerFile(
     }
     const normalizedDir = outputDirectory.endsWith('/') ? outputDirectory : `${outputDirectory}/`;
 
-    if (namespaceName === 'localtest') {
-        await writeLocal(normalizedDir, 'done.trg', Buffer.alloc(0));
-    } else {
-        await uploadObject(normalizedDir, 'done.trg', Buffer.alloc(0), 'text/plain', bucketName, namespaceName);
-    }
+    await uploadObject(normalizedDir, 'done.trg', Buffer.alloc(0), 'text/plain', bucketName, namespaceName);
 }
