@@ -4,8 +4,12 @@ export interface RowSplitterConfig {
     structure?: StructureOptions;
     files?: Record<string, OutputFileDefinition>;
     groups?: Record<string, unknown>;
-    primaryGroup?: string;
     [key: string]: unknown;
+}
+
+interface GroupDefinition {
+    key?: Record<string, unknown>;
+    count?: Record<string, unknown>;
 }
 
 function normalizeFilesDefinition(filesDefinition: unknown): Record<string, OutputFileDefinition> | undefined {
@@ -25,6 +29,115 @@ function normalizeFilesDefinition(filesDefinition: unknown): Record<string, Outp
     );
 }
 
+function parseFromGroupReference(
+    fileName: string,
+    fieldName: string,
+    fromGroup: unknown,
+): { groupName: string; generatedValue: 'key' | 'count' } {
+    if (typeof fromGroup !== 'string' || fromGroup.trim() === '') {
+        throw new Error(`files.${fileName}.${fieldName}.fromGroup must be a non-empty string`);
+    }
+
+    const parts = fromGroup.split('.');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+        throw new Error(
+            `files.${fileName}.${fieldName}.fromGroup must include an explicit group name, for example groupName.key`,
+        );
+    }
+
+    const [groupName, generatedValue] = parts;
+    if (generatedValue !== 'key' && generatedValue !== 'count') {
+        throw new Error(`files.${fileName}.${fieldName}.fromGroup must end with .key or .count`);
+    }
+
+    return { groupName, generatedValue };
+}
+
+function getGroupDefinition(
+    groupsDefinition: RowSplitterConfig['groups'],
+    contextPath: string,
+    groupName: string,
+): GroupDefinition {
+    if (!groupsDefinition) {
+        throw new Error(`Config file must define groups when ${contextPath} is used`);
+    }
+
+    const groupDefinition = groupsDefinition[groupName];
+    if (!groupDefinition || typeof groupDefinition !== 'object' || Array.isArray(groupDefinition)) {
+        throw new Error(`${contextPath} must reference one of the configured groups: ${Object.keys(groupsDefinition).join(', ')}`);
+    }
+
+    return groupDefinition as GroupDefinition;
+}
+
+function validateFromGroupReference(
+    fileName: string,
+    fieldName: string,
+    fromGroup: unknown,
+    groupsDefinition: RowSplitterConfig['groups'],
+): void {
+    const { groupName, generatedValue } = parseFromGroupReference(fileName, fieldName, fromGroup);
+    const groupDefinition = getGroupDefinition(
+        groupsDefinition,
+        `files.${fileName}.${fieldName}.fromGroup`,
+        groupName,
+    );
+
+    if (!groupDefinition[generatedValue]) {
+        throw new Error(`groups.${groupName}.${generatedValue} must be defined when files.${fileName}.${fieldName}.fromGroup uses ${groupName}.${generatedValue}`);
+    }
+}
+
+function validateFileFieldDefinitions(
+    fileName: string,
+    definition: OutputFileDefinition,
+    groupsDefinition: RowSplitterConfig['groups'],
+): void {
+    for (const [fieldName, fieldDefinition] of Object.entries(definition)) {
+        if (fieldName === 'format' || fieldName === 'onePer' || fieldName === 'includeHeader' || fieldName === 'content') {
+            continue;
+        }
+
+        if (
+            fieldDefinition
+            && typeof fieldDefinition === 'object'
+            && !Array.isArray(fieldDefinition)
+            && Object.prototype.hasOwnProperty.call(fieldDefinition, 'fromGroup')
+        ) {
+            validateFromGroupReference(
+                fileName,
+                fieldName,
+                (fieldDefinition as Record<string, unknown>).fromGroup,
+                groupsDefinition,
+            );
+        }
+    }
+}
+
+function validateFilesAgainstGroups(
+    filesDefinition: Record<string, OutputFileDefinition>,
+    groupsDefinition: RowSplitterConfig['groups'],
+): void {
+    for (const [fileName, fileDefinition] of Object.entries(filesDefinition)) {
+        if (fileDefinition.format === 'txt') {
+            if (fileDefinition.onePer !== undefined) {
+                throw new Error(`files.${fileName}.onePer cannot be used with txt format`);
+            }
+            continue;
+        }
+
+        if (fileDefinition.onePer !== undefined) {
+            if (typeof fileDefinition.onePer !== 'string' || fileDefinition.onePer.trim() === '') {
+                throw new Error(`files.${fileName}.onePer must be a non-empty string`);
+            }
+
+            getGroupDefinition(groupsDefinition, `files.${fileName}.onePer`, fileDefinition.onePer);
+        }
+
+        validateFileFieldDefinitions(fileName, fileDefinition, groupsDefinition);
+    }
+}
+
 function normalizeFileDefinition(
     fileName: string,
     fileDefinition: unknown,
@@ -35,6 +148,11 @@ function normalizeFileDefinition(
     }
 
     const definition = fileDefinition as OutputFileDefinition;
+
+    if (Object.prototype.hasOwnProperty.call(definition, 'group') || Object.prototype.hasOwnProperty.call(definition, 'mode')) {
+        throw new Error(`files.${fileName}.group and files.${fileName}.mode are no longer supported; use onePer for grouped output or omit it for one row per source row`);
+    }
+
     const format = String(definition.format ?? defaultFormat).toLowerCase();
 
     if (format === 'txt') {
@@ -66,6 +184,8 @@ export function normalizeConfigDefinition(configDefinition: unknown): RowSplitte
     if (!normalizedFiles) {
         throw new Error('Config file is missing required property: files');
     }
+
+    validateFilesAgainstGroups(normalizedFiles, config.groups);
 
     return { ...config, files: normalizedFiles };
 }

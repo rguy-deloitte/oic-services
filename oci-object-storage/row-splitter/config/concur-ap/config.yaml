@@ -8,8 +8,7 @@ structure:
 
 files:
   ApInvoicesInterface.csv:
-    group: transaction
-    mode: group
+    onePer: transaction
     includeHeader: false
 
     "*Invoice ID":
@@ -167,8 +166,6 @@ files:
       value: END
 
   ApInvoiceLinesInterface.csv:
-    group: transaction
-    mode: row
     includeHeader: false
 
     "*Invoice ID":

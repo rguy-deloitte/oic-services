@@ -1,5 +1,4 @@
 import type { TabularFile, TabularRow } from '../types.js';
-import type { RowSplitterConfig } from './configurations.js';
 
 export interface GroupSequenceConfig {
     prefix: string;
@@ -29,11 +28,7 @@ interface GroupDefinition {
     count?: Record<string, unknown>;
 }
 
-export interface GroupBridge {
-    groupStates: Record<string, GroupState>;
-    primaryGroups: GroupRecord[];
-    primaryGroupName: string;
-}
+export type GroupStates = Record<string, GroupState>;
 
 export interface SplitContext {
     root: TabularFile;
@@ -42,8 +37,7 @@ export interface SplitContext {
         group: GroupRecord;
         groupIndex: number;
         header: Record<string, string>;
-        groupStates: Record<string, GroupState>;
-        primaryGroupName: string;
+        groupStates: GroupStates;
     };
     lineIndex: number | null;
     currentOutput?: Record<string, string>;
@@ -98,53 +92,24 @@ function assignGroupMetadata(groupState: GroupState): void {
     }
 }
 
-function determinePrimaryGroupName(splitDefinition: RowSplitterConfig, groupNames: string[]): string {
-    if (splitDefinition.primaryGroup) {
-        if (!groupNames.includes(splitDefinition.primaryGroup)) {
-            throw new Error(
-                `primaryGroup must reference one of the configured groups: ${groupNames.join(', ')}`,
-            );
-        }
-        return splitDefinition.primaryGroup;
-    }
-    if (groupNames.length === 1) return groupNames[0];
-    throw new Error('primaryGroup is required when multiple groups are defined');
-}
-
-export function buildDefaultGroupDefinitions(rows: TabularRow[]): GroupBridge {
-    const defaultGroupState: GroupState = {
-        name: 'default',
-        groupBy: [],
-        keyConfig: { prefix: '', start: 1 },
-        countConfig: { prefix: '', start: 1 },
-        groups: rows.length > 0 ? [{ key: 'default', rows }] : [],
-        rowToGroup: new Map(),
-    };
-    assignGroupMetadata(defaultGroupState);
-    return {
-        groupStates: { default: defaultGroupState },
-        primaryGroups: defaultGroupState.groups,
-        primaryGroupName: 'default',
-    };
-}
-
-export function buildGroupDefinitions(rows: TabularRow[], splitDefinition: RowSplitterConfig): GroupBridge {
-    const groupsConfig = splitDefinition.groups as Record<string, GroupDefinition> | undefined;
+export function buildGroupDefinitions(
+    rows: TabularRow[],
+    groupsConfig: Record<string, unknown>,
+): GroupStates {
     if (!groupsConfig) throw new Error('groups must be defined');
     if (typeof groupsConfig !== 'object' || Array.isArray(groupsConfig)) {
         throw new Error('groups must be an object');
     }
     const groupNames = Object.keys(groupsConfig);
     if (groupNames.length === 0) throw new Error('groups must define at least one group');
-
-    const primaryGroupName = determinePrimaryGroupName(splitDefinition, groupNames);
-    const groupStates: Record<string, GroupState> = {};
+    const groupStates: GroupStates = {};
 
     for (const groupName of groupNames) {
-        const groupDefinition = groupsConfig[groupName];
-        if (!groupDefinition || typeof groupDefinition !== 'object' || Array.isArray(groupDefinition)) {
+        const rawGroupDefinition = groupsConfig[groupName];
+        if (!rawGroupDefinition || typeof rawGroupDefinition !== 'object' || Array.isArray(rawGroupDefinition)) {
             throw new Error(`groups.${groupName} must be an object`);
         }
+        const groupDefinition = rawGroupDefinition as GroupDefinition;
         if (!Array.isArray(groupDefinition.groupBy)) {
             throw new Error(`groups.${groupName}.groupBy must be an array`);
         }
@@ -166,9 +131,5 @@ export function buildGroupDefinitions(rows: TabularRow[], splitDefinition: RowSp
         groupStates[groupName] = groupState;
     }
 
-    return {
-        groupStates,
-        primaryGroups: groupStates[primaryGroupName].groups,
-        primaryGroupName,
-    };
+    return groupStates;
 }

@@ -16,8 +16,7 @@ structure:
 
 files:
   XlaTrxH.csv:
-    group: transaction
-    mode: group
+    onePer: transaction
 
     TRANSACTION_NUMBER:
       fromGroup: transaction.key
@@ -110,8 +109,6 @@ files:
     Long Character5:
 
   XlaTrxL.csv:
-    group: transaction
-    mode: row
 
     TRANSACTION_NUMBER:
       fromGroup: transaction.key

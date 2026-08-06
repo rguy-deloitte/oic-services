@@ -64,24 +64,17 @@ function buildExpressionContext(context: SplitContext): Record<string, unknown> 
 
 function resolveGroupValue(fromGroupReference: string, context: SplitContext): string {
     const parts = String(fromGroupReference).split('.');
-    let groupName: string | undefined;
-    let keyName: string;
-
-    if (parts.length === 1) {
-        keyName = parts[0];
-        const groupNames = Object.keys(context.groupContext.groupStates || {});
-        if (groupNames.length === 1) {
-            groupName = groupNames[0];
-        } else {
-            return '';
-        }
-    } else {
-        groupName = parts.shift();
-        keyName = parts.join('.');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+        throw new Error(`fromGroup must include an explicit group name: ${fromGroupReference}`);
     }
 
+    const groupName = parts.shift();
+    const keyName = parts.join('.');
+
     const groupState = context.groupContext.groupStates?.[groupName!];
-    if (!groupState) return '';
+    if (!groupState) {
+        throw new Error(`fromGroup references unknown group: ${groupName}`);
+    }
 
     const row = context.row || context.groupContext.group.rows[0];
     const rowGroupEntry = groupState.rowToGroup.get(row);
@@ -95,7 +88,7 @@ function resolveGroupValue(fromGroupReference: string, context: SplitContext): s
             if (!groupState.countConfig) throw new Error(`groups.${groupName} has no count definition`);
             return rowGroupEntry.group.rowCounts?.[rowGroupEntry.rowIndex] ?? '';
         default:
-            return '';
+            throw new Error(`fromGroup must end with .key or .count: ${fromGroupReference}`);
     }
 }
 

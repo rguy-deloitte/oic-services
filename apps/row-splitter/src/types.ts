@@ -38,8 +38,7 @@ export type FieldDefinition = FieldDefinitionObject | string | number | boolean 
 
 export interface OutputFileDefinition {
     format?: 'csv' | 'txt';
-    group?: string;
-    mode?: 'group' | 'row';
+    onePer?: string;
     includeHeader?: boolean;
     content?: string;
     [key: string]: unknown;

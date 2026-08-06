@@ -1,12 +1,8 @@
 import type { FieldDefinition, GeneratedOutputFile, OutputFileDefinition, TabularFile, TabularRow } from '../types.js';
 import type { RowSplitterConfig } from './configurations.js';
-import type { GroupBridge, SplitContext } from './grouping.js';
-import { buildDefaultGroupDefinitions, buildGroupDefinitions } from './grouping.js';
+import type { GroupRecord, GroupState, GroupStates, SplitContext } from './grouping.js';
+import { buildGroupDefinitions } from './grouping.js';
 import { resolveFieldValue } from './field-resolver.js';
-
-function getDefaultOutputMode(): 'row' {
-    return 'row';
-}
 
 function createSplittingContext(
     root: TabularFile,
@@ -15,6 +11,41 @@ function createSplittingContext(
     lineIndex: number | null,
 ): SplitContext {
     return { root, row, groupContext, lineIndex };
+}
+
+function createGroupContext(group: GroupRecord, groupIndex: number, groupStates: GroupStates): SplitContext['groupContext'] {
+    return {
+        group,
+        groupIndex,
+        header: {},
+        groupStates,
+    };
+}
+
+function getGroupState(
+    fileName: string,
+    groupName: string,
+    groupStates: GroupStates,
+): GroupState {
+    const groupState = groupStates[groupName];
+    if (groupState) {
+        return groupState;
+    }
+
+    const availableGroups = Object.keys(groupStates);
+    throw new Error(
+        availableGroups.length === 0
+            ? `${fileName}: no groups defined and no fields specified`
+            : `${fileName}.onePer must reference one of the configured groups: ${availableGroups.join(', ')}`,
+    );
+}
+
+function getFieldDefinitions(fileDefinition: OutputFileDefinition): Record<string, FieldDefinition> {
+    const fieldDefinitions = { ...fileDefinition } as Record<string, FieldDefinition>;
+    delete fieldDefinitions.onePer;
+    delete fieldDefinitions.format;
+    delete fieldDefinitions.includeHeader;
+    return fieldDefinitions;
 }
 
 async function buildSplitObject(
@@ -31,71 +62,69 @@ async function buildSplitObject(
     return splitObject;
 }
 
-async function buildOutputRecords(
-    fileName: string,
-    sectionDefinition: OutputFileDefinition,
-    groupBridge: GroupBridge,
+async function buildUngroupedOutputRecords(
+    fieldDefinitions: Record<string, FieldDefinition>,
+    groupStates: GroupStates,
     inputData: TabularFile,
 ): Promise<Record<string, string>[]> {
-    if (!sectionDefinition) return [];
-    if (typeof sectionDefinition !== 'object' || Array.isArray(sectionDefinition)) {
-        throw new Error(`${fileName} must be an object`);
-    }
-
-    const groupName = sectionDefinition.group ?? groupBridge.primaryGroupName;
-    const mode = sectionDefinition.mode ?? getDefaultOutputMode();
-    const groupState = groupBridge.groupStates[groupName];
-
-    if (!groupState) {
-        const availableGroups = Object.keys(groupBridge.groupStates);
-        throw new Error(
-            availableGroups.length === 0
-                ? `${fileName}: no groups defined and no fields specified`
-                : `${fileName}.group must reference one of the configured groups: ${availableGroups.join(', ')}`,
-        );
-    }
-
-    const fieldDefinitions = { ...sectionDefinition } as Record<string, FieldDefinition>;
-    delete fieldDefinitions.group;
-    delete fieldDefinitions.mode;
-    delete fieldDefinitions.format;
-    delete fieldDefinitions.includeHeader;
-
+    const defaultGroup: GroupRecord = { key: 'default', rows: inputData.rows };
+    const groupContext = createGroupContext(defaultGroup, 0, groupStates);
     const records: Record<string, string>[] = [];
 
-    for (const [groupIndex, group] of groupState.groups.entries()) {
-        const groupContext = {
-            group,
-            groupIndex,
-            header: {},
-            groupStates: groupBridge.groupStates,
-            primaryGroupName: groupBridge.primaryGroupName,
-        };
-
-        if (mode === 'group') {
-            const firstRow = group.rows[0] || {};
-            records.push(await buildSplitObject(
-                fieldDefinitions,
-                createSplittingContext(inputData, firstRow, groupContext, null),
-            ));
-        } else if (mode === 'row') {
-            for (const [lineIndex, row] of group.rows.entries()) {
-                records.push(await buildSplitObject(
-                    fieldDefinitions,
-                    createSplittingContext(inputData, row, groupContext, lineIndex),
-                ));
-            }
-        } else {
-            throw new Error(`${fileName}.mode must be either 'group' or 'row'`);
-        }
+    for (const [lineIndex, row] of inputData.rows.entries()) {
+        records.push(await buildSplitObject(
+            fieldDefinitions,
+            createSplittingContext(inputData, row, groupContext, lineIndex),
+        ));
     }
 
     return records;
 }
 
+async function buildGroupedOutputRecords(
+    fileName: string,
+    groupName: string,
+    fieldDefinitions: Record<string, FieldDefinition>,
+    groupStates: GroupStates,
+    inputData: TabularFile,
+): Promise<Record<string, string>[]> {
+    const groupState = getGroupState(fileName, groupName, groupStates);
+    const records: Record<string, string>[] = [];
+
+    for (const [groupIndex, group] of groupState.groups.entries()) {
+        const firstRow = group.rows[0] || {};
+        records.push(await buildSplitObject(
+            fieldDefinitions,
+            createSplittingContext(inputData, firstRow, createGroupContext(group, groupIndex, groupStates), null),
+        ));
+    }
+
+    return records;
+}
+
+async function buildOutputRecords(
+    fileName: string,
+    fileDefinition: OutputFileDefinition,
+    groupStates: GroupStates,
+    inputData: TabularFile,
+): Promise<Record<string, string>[]> {
+    if (!fileDefinition) return [];
+    if (typeof fileDefinition !== 'object' || Array.isArray(fileDefinition)) {
+        throw new Error(`${fileName} must be an object`);
+    }
+
+    const fieldDefinitions = getFieldDefinitions(fileDefinition);
+
+    if (!fileDefinition.onePer) {
+        return buildUngroupedOutputRecords(fieldDefinitions, groupStates, inputData);
+    }
+
+    return buildGroupedOutputRecords(fileName, fileDefinition.onePer, fieldDefinitions, groupStates, inputData);
+}
+
 async function buildOutputFiles(
     filesDefinition: Record<string, OutputFileDefinition> | undefined,
-    groupBridge: GroupBridge,
+    groupStates: GroupStates,
     inputData: TabularFile,
 ): Promise<GeneratedOutputFile[]> {
     if (!filesDefinition) return [];
@@ -114,7 +143,7 @@ async function buildOutputFiles(
             });
             continue;
         }
-        const rows = await buildOutputRecords(fileName, fileDefinition, groupBridge, inputData);
+        const rows = await buildOutputRecords(fileName, fileDefinition, groupStates, inputData);
         outputFiles.push({
             name: fileName,
             format: 'csv',
@@ -130,12 +159,11 @@ export async function applySplitting(
     inputData: TabularFile,
     splitDefinition: RowSplitterConfig,
 ): Promise<{ files: GeneratedOutputFile[] }> {
-    const rows = inputData.rows || [];
-    const groupBridge = splitDefinition.groups
-        ? buildGroupDefinitions(rows, splitDefinition)
-        : buildDefaultGroupDefinitions(rows);
+    const groupStates = splitDefinition.groups
+        ? buildGroupDefinitions(inputData.rows || [], splitDefinition.groups)
+        : {};
 
     return {
-        files: await buildOutputFiles(splitDefinition.files, groupBridge, inputData),
+        files: await buildOutputFiles(splitDefinition.files, groupStates, inputData),
     };
 }
