@@ -45,23 +45,6 @@ export interface OutputFileDefinition {
     [key: string]: unknown;
 }
 
-export interface MetadataDefinition {
-    name?: string;
-    version?: string | number;
-    [key: string]: unknown;
-}
-
-export interface RowSplitterConfig {
-    structure?: StructureOptions;
-    files?: Record<string, OutputFileDefinition>;
-    groups?: Record<string, unknown>;
-    primaryGroup?: string;
-    header?: OutputFileDefinition;
-    line?: OutputFileDefinition;
-    metadata?: MetadataDefinition;
-    [key: string]: unknown;
-}
-
 export interface OutputCsvFile {
     name: string;
     format: 'csv';

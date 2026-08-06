@@ -1,6 +1,7 @@
-import type { RowSplitterConfig, TabularFile } from './src/types';
-import { loadStructuredFile, loadConfigFile, saveZippedOutputFiles, saveTriggerFile } from './src/services/files';
-import { applySplitting } from './src/services/splitting';
+import type { TabularFile } from './src/types.js';
+import type { RowSplitterConfig } from './src/services/configurations.js';
+import { loadTabularFile, loadConfigFile, saveZippedOutputFiles, saveTriggerFile } from './src/services/files.js';
+import { applySplitting } from './src/services/splitting.js';
 
 const fdk = require('@fnproject/fdk');
 
@@ -37,7 +38,7 @@ const handler = async (event: ObjectStorageEvent = {}) => {
   let configFilePath: string = sourceFilePath.replace(/^row-splitter\/source\//, 'row-splitter/config/').replace(/\/[^\/]+$/, '/config.yaml');
 
   let configFile: RowSplitterConfig;
-  let structuredFile: TabularFile;
+  let sourceFile: TabularFile;
 
   if (namespaceName === 'localtest') {
     const path = require('path');
@@ -47,14 +48,14 @@ const handler = async (event: ObjectStorageEvent = {}) => {
   }
 
   configFile = await loadConfigFile(configFilePath, bucketName, namespaceName);
-  structuredFile = await loadStructuredFile(sourceFilePath, bucketName, namespaceName, configFile.structure);
+  sourceFile = await loadTabularFile(sourceFilePath, bucketName, namespaceName, configFile.structure);
 
   if (!configFile || !configFile.files) {
     throw new Error('Config file is missing required properties: files');
   }
 
   // Apply the splitting logic to the structured input file using the loaded config definition
-  const { files } = await applySplitting(structuredFile, configFile);
+  const { files } = await applySplitting(sourceFile, configFile);
 
   // Reformat JSON values into output files and write to object storage
   await saveZippedOutputFiles(outputDirectory, files, bucketName, namespaceName, sourceFilePath);
@@ -66,7 +67,7 @@ const handler = async (event: ObjectStorageEvent = {}) => {
   return {
     ok: true,
     objectName: sourceFilePath,
-    rowCount: structuredFile.rows.length,
+    rowCount: sourceFile.rows.length,
   };
 };
 
