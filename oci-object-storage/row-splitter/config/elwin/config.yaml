@@ -4,10 +4,9 @@ groups:
       - C6
       - C7
     key:
-      prefix: LCKTRELW
-      start: 10000000002000
+      format: LCKTRELW{epoch}{sequence}
+      sequenceStart: '001'
     count:
-      prefix: ''
       start: 1
 
 structure:

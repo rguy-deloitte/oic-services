@@ -4,15 +4,22 @@ import type { FieldDefinition, FieldDefinitionObject } from './field-resolver.js
 export interface GroupSequenceInput {
     sequence?: {
         prefix?: string;
-        start?: number;
+        start?: number | string;
     };
     prefix?: string;
-    start?: number;
+    start?: number | string;
 }
+
+export interface GroupKeyFormatInput {
+    format: string;
+    sequenceStart?: number | string;
+}
+
+export type GroupKeyDefinition = GroupSequenceInput | GroupKeyFormatInput;
 
 export interface GroupDefinition {
     groupBy: string[];
-    key?: GroupSequenceInput;
+    key?: GroupKeyDefinition;
     count?: GroupSequenceInput;
 }
 

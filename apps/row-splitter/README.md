@@ -130,7 +130,7 @@ Supported source options:
 | `from` | Defines the column in the source file from which to take the value |
 | `fromRoot` | Defines an item of metadata that should be used as the value. This can be `filename` for the source file full path, or `basename` for just the source filename |
 | `fromGroup` | Reads a generated group value such as `customer_order.key` or `customer_order.count` |
-| `sequence` | An integer with a start value which counts up with each row |
+| `sequence` | A generated sequence value that can use `start` and `prefix`; if `start` is quoted like `'001'`, the zero padding is preserved |
 | `expr` | Allows an expression in order to perform some processing of values, like adding two values together. This is detailed [below](#expressions) |
 
 If output files reference `fromGroup`, the config must also contain `groups`, and each `fromGroup` value must use the full `groupName.key` or `groupName.count` form. This is detailed [below](#grouping).
@@ -211,6 +211,26 @@ groups:
 
 - `key` is usually used to link files together.
 - `count` is usually used when you need numbering within each parent group.
+- If `start` is written as a quoted numeric string such as `'001'`, the generated values keep that width, for example `001`, `002`, `003`.
+
+If you want the group key to include a Unix epoch in milliseconds, use a `format` string with `{epoch}` and `{sequence}` placeholders:
+
+```yaml
+groups:
+  customer_order:
+    groupBy:
+      - invoice_recipient_name
+      - invoice_address
+    key:
+      format: CUST{epoch}-{sequence}
+      sequenceStart: '001'
+```
+
+In that form:
+
+- `{epoch}` is a raw Unix epoch in milliseconds.
+- `{sequence}` is the per-group sequence value.
+- the epoch is captured once when the grouped keys are generated, so all keys from the same group definition in that run share the same epoch value.
 
 These values are referenced using `fromGroup`:
 

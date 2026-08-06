@@ -3,8 +3,8 @@ groups:
     groupBy:
       - Transaction Type
     key:
-      prefix: LCKUKHR
-      start: 1000000000000
+      format: LCKUKHR{epoch}{sequence}
+      sequenceStart: '001'
     count:
       start: 1
 

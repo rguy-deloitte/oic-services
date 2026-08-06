@@ -6,7 +6,7 @@ export type LookupMap = Record<string, ScalarValue>;
 export interface SequenceDefinition {
     type?: 'transaction' | 'line';
     prefix?: string;
-    start?: number;
+    start?: number | string;
 }
 
 export interface FieldDefinitionObject {
@@ -123,14 +123,47 @@ function resolveSequenceValue(
         : sequenceDefinition;
     switch (sequence.type) {
         case 'transaction': {
-            const start = Number(sequence.start || 0);
-            return `${sequence.prefix || ''}${start + context.groupContext.groupIndex}`;
+            return formatSequenceValue(sequence, context.groupContext.groupIndex, 'sequence');
         }
         case 'line':
-            return String((context.lineIndex || 0) + 1);
+            return formatSequenceValue(sequence, context.lineIndex || 0, 'sequence');
         default:
             throw new Error(`Unsupported sequence type: ${sequence.type}`);
     }
+}
+
+function formatSequenceValue(
+    sequence: SequenceDefinition,
+    offset: number,
+    contextName: string,
+): string {
+    const prefix = String(sequence.prefix ?? '');
+    const { start, paddingLength } = normalizeSequenceStart(sequence.start ?? 0, contextName);
+    const value = String(start + offset);
+    const formattedValue = paddingLength === null ? value : value.padStart(paddingLength, '0');
+    return `${prefix}${formattedValue}`;
+}
+
+function normalizeSequenceStart(
+    startValue: number | string,
+    contextName: string,
+): { start: number; paddingLength: number | null } {
+    if (typeof startValue === 'number') {
+        if (!Number.isInteger(startValue) || startValue < 0) {
+            throw new Error(`${contextName}.start must be a non-negative integer`);
+        }
+        return { start: startValue, paddingLength: null };
+    }
+
+    const trimmedValue = startValue.trim();
+    if (!/^\d+$/.test(trimmedValue)) {
+        throw new Error(`${contextName}.start must be a non-negative integer`);
+    }
+
+    return {
+        start: Number(trimmedValue),
+        paddingLength: trimmedValue.length,
+    };
 }
 
 function applyLookup(lookupDefinition: LookupMap, value: ScalarValue): ScalarValue {
