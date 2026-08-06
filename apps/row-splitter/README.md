@@ -76,7 +76,9 @@ The config must contain:
 - `files` — Defines the output structure
 
 Optional top-level fields:
-- `structure` — Describes the source file structure (header rows, column format)
+- `configVersion` — Tracks the version of the configuration document
+- `sourceFile` — Describes how the source file should be interpreted
+- `outputFile` — Describes zip output naming and can also hold string values used by other applications
 - `groups` — Defines reusable groups based on repeated values in the source rows
 
 ### Files
@@ -322,12 +324,12 @@ In that example:
 - `lines.csv` has one row per line and carries the order key.
 - `distributions.csv` has one row per distribution and carries both the order key and the line key.
 
-### Structure Options
+### Source File Options
 
-The optional `structure` block controls how worksheet columns are mapped for CSV and XLSX input files.
+The optional `sourceFile` block controls how worksheet columns are mapped for CSV and XLSX input files.
 
 ```yaml
-structure:
+sourceFile:
   headerRowPresent: true
   ignoreHeaderRow: true
 ```
@@ -337,7 +339,44 @@ Behavior:
 - `headerRowPresent: true` and `ignoreHeaderRow: true`: skip the first row and use `C1`, `C2`, `C3`, and so on.
 - `headerRowPresent: true` and `ignoreHeaderRow: false` or omitted: skip the first row and use the first row values as property names.
 - `headerRowPresent: false`: treat the first row as data and use `C1`, `C2`, `C3`, and so on.
-- If `structure` is omitted, both values are treated as `false`.
+- If `sourceFile` is omitted, both values are treated as `false`.
+
+### Output File Options
+
+The optional `outputFile` block controls how the zip output is named. It can also contain additional string values for use by other applications.
+
+Fixed zip filename:
+
+```yaml
+outputFile:
+  zip:
+    name: ResourceLink.zip
+```
+
+Formatted zip filename:
+
+```yaml
+outputFile:
+  zip:
+    format: "{inputName}_{timestamp}.zip"
+```
+
+Supported placeholders:
+
+- `{inputName}` — the input filename without its extension
+- `{timestamp}` — the current timestamp in `YYYYMMDDHHmmss` format
+
+If `outputFile.zip` is omitted, the default zip name remains `{inputName}_{timestamp}.zip`.
+
+You can also include additional string-valued keys in `outputFile` for use by other applications:
+
+```yaml
+outputFile:
+  zip:
+    format: "{inputName}_{timestamp}.zip"
+  externalSystem: FinanceBridge
+  documentCategory: resource-link
+```
 
 ### Advanced Formatting
 

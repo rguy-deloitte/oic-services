@@ -38,7 +38,7 @@ const handler = async (event: ObjectStorageEvent = {}) => {
   let configFilePath: string = sourceFilePath.replace(/^row-splitter\/source\//, 'row-splitter/config/').replace(/\/[^\/]+$/, '/config.yaml');
 
   let configFile: RowSplitterConfig = await loadConfigFile(configFilePath, bucketName, namespaceName);
-  let sourceFile: TabularFile = await loadTabularFile(sourceFilePath, bucketName, namespaceName, configFile.structure);
+  let sourceFile: TabularFile = await loadTabularFile(sourceFilePath, bucketName, namespaceName, configFile.sourceFile);
 
   if (!configFile || !configFile.files) {
     throw new Error('Config file is missing required properties: files');
@@ -48,7 +48,7 @@ const handler = async (event: ObjectStorageEvent = {}) => {
   const { files } = await applySplitting(sourceFile, configFile);
 
   // Reformat JSON values into output files and write to object storage
-  await saveZippedOutputFiles(outputDirectory, files, bucketName, namespaceName, sourceFilePath);
+  await saveZippedOutputFiles(outputDirectory, files, bucketName, namespaceName, sourceFilePath, configFile.outputFile);
   await saveTriggerFile(outputDirectory, bucketName, namespaceName);
 
   console.log(`Successfully processed file: ${sourceFilePath}`);

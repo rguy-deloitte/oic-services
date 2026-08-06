@@ -1,4 +1,4 @@
-import type { RowSplitterConfig } from './configurations.js';
+import type { OutputFileSettings, RowSplitterConfig } from './configurations.js';
 import type { StructureOptions, TabularFile } from './tabular-parser.js';
 import path from 'node:path';
 import JSZip from 'jszip';
@@ -24,6 +24,10 @@ export interface OutputTxtFile {
 export type GeneratedOutputFile = OutputCsvFile | OutputTxtFile;
 
 export { normalizeConfigDefinition };
+
+function buildTimestampValue(): string {
+    return dayjs().format('YYYYMMDDHHmmss');
+}
 
 export async function loadTabularFile(
     filename: string,
@@ -70,8 +74,28 @@ function buildCsvBuffer(rows: Array<Record<string, string>>, includeHeader = tru
 
 function buildTimestampedZipName(inputObjectName: string): string {
     const fileName = path.basename(inputObjectName, path.extname(inputObjectName));
-    const timestamp = dayjs().format('YYYYMMDDHHmmss');
+    const timestamp = buildTimestampValue();
     return `${fileName}_${timestamp}.zip`;
+}
+
+export function resolveZipFileName(inputObjectName: string, outputFile?: OutputFileSettings): string {
+    const zipDefinition = outputFile?.zip;
+    if (!zipDefinition) {
+        return buildTimestampedZipName(inputObjectName);
+    }
+
+    if (zipDefinition.name) {
+        return zipDefinition.name;
+    }
+
+    if (zipDefinition.format) {
+        const inputName = path.basename(inputObjectName, path.extname(inputObjectName));
+        return zipDefinition.format
+            .replaceAll('{inputName}', inputName)
+            .replaceAll('{timestamp}', buildTimestampValue());
+    }
+
+    return buildTimestampedZipName(inputObjectName);
 }
 
 function buildZipContent(outputFiles: GeneratedOutputFile[]): Promise<Buffer> {
@@ -103,6 +127,7 @@ export async function saveZippedOutputFiles(
     bucketName: string,
     namespaceName: string,
     inputObjectName: string,
+    outputFile?: OutputFileSettings,
 ): Promise<void> {
     if (!outputDirectory) throw new Error('outputDirectory is required');
     if (!bucketName || !namespaceName) {
@@ -113,7 +138,7 @@ export async function saveZippedOutputFiles(
     }
     const normalizedDir = outputDirectory.endsWith('/') ? outputDirectory : `${outputDirectory}/`;
     const zipContent = await buildZipContent(outputFiles);
-    const zipFileName = buildTimestampedZipName(inputObjectName);
+    const zipFileName = resolveZipFileName(inputObjectName, outputFile);
 
     await uploadObject(normalizedDir, zipFileName, zipContent, 'application/zip', bucketName, namespaceName);
 }

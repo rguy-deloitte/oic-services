@@ -1,11 +1,10 @@
 import { promises as fsPromises, readFileSync } from 'node:fs';
 import path from 'node:path';
 import JSZip from 'jszip';
-import dayjs from 'dayjs';
 import { load as jsYamlLoad } from 'js-yaml';
-import type { RowSplitterConfig } from './src/services/configurations.js';
+import type { OutputFileSettings, RowSplitterConfig } from './src/services/configurations.js';
 import type { GeneratedOutputFile } from './src/services/files.js';
-import { normalizeConfigDefinition } from './src/services/files.js';
+import { normalizeConfigDefinition, resolveZipFileName } from './src/services/files.js';
 import { parseWorksheetBuffer } from './src/services/tabular-parser.js';
 import { applySplitting } from './src/services/splitting.js';
 import type { StructureOptions, TabularFile } from './src/services/tabular-parser.js';
@@ -50,12 +49,6 @@ function buildCsvBuffer(rows: Array<Record<string, string>>, includeHeader = tru
   return Buffer.from(`${csvLines.join('\n')}${csvLines.length > 0 ? '\n' : ''}`, 'utf8');
 }
 
-function buildTimestampedZipName(inputObjectPath: string): string {
-  const fileName = path.basename(inputObjectPath, path.extname(inputObjectPath));
-  const timestamp = dayjs().format('YYYYMMDDHHmmss');
-  return `${fileName}_${timestamp}.zip`;
-}
-
 async function writeLocal(directory: string, filename: string, content: Buffer): Promise<void> {
   const filePath = path.join(directory, filename);
   await fsPromises.mkdir(path.dirname(filePath), { recursive: true });
@@ -66,6 +59,7 @@ async function saveLocalZippedOutputFiles(
   outputDirectory: string,
   outputFiles: GeneratedOutputFile[],
   inputObjectPath: string,
+  outputFile?: OutputFileSettings,
 ): Promise<void> {
   if (!Array.isArray(outputFiles) || outputFiles.length === 0) {
     throw new Error('At least one output file is required to save zipped output files');
@@ -88,7 +82,7 @@ async function saveLocalZippedOutputFiles(
   }
 
   const zipContent = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
-  await writeLocal(normalizedDir, buildTimestampedZipName(inputObjectPath), zipContent);
+  await writeLocal(normalizedDir, resolveZipFileName(inputObjectPath, outputFile), zipContent);
 }
 
 async function saveLocalTriggerFile(outputDirectory: string): Promise<void> {
@@ -110,13 +104,13 @@ async function runLocalTest() {
 
   console.log('Loading local config and source files...');
   const configFile = loadLocalConfigFile(configFilePath);
-  const sourceFile = await loadLocalTabularFile(sourceFilePath, configFile.structure);
+  const sourceFile = await loadLocalTabularFile(sourceFilePath, configFile.sourceFile);
 
   console.log('Applying splitting rules...');
   const { files } = await applySplitting(sourceFile, configFile);
 
   console.log('Writing local output files...');
-  await saveLocalZippedOutputFiles(outputDirectory, files, sourceObjectPath);
+  await saveLocalZippedOutputFiles(outputDirectory, files, sourceObjectPath, configFile.outputFile);
   await saveLocalTriggerFile(outputDirectory);
 
   console.log(`Local test completed for ${sourceObjectPath}`);
