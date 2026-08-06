@@ -1,5 +1,27 @@
-import type { FieldDefinition, FieldDefinitionObject, LookupMap, SequenceDefinition } from '../types.js';
 import type { SplitContext } from './grouping.js';
+
+export type ScalarValue = string | number | boolean | null | undefined;
+export type LookupMap = Record<string, ScalarValue>;
+
+export interface SequenceDefinition {
+    type?: 'transaction' | 'line';
+    prefix?: string;
+    start?: number;
+}
+
+export interface FieldDefinitionObject {
+    value?: ScalarValue;
+    from?: string;
+    fromRoot?: string;
+    fromGroup?: string;
+    sequence?: string | SequenceDefinition;
+    expr?: string;
+    lookup?: LookupMap;
+    transform?: string;
+    format?: string;
+}
+
+export type FieldDefinition = FieldDefinitionObject | ScalarValue;
 
 const dayjs = require('dayjs');
 const customParseFormat = require('dayjs/plugin/customParseFormat');
@@ -96,8 +118,8 @@ function resolveSequenceValue(
     sequenceDefinition: string | SequenceDefinition,
     context: SplitContext,
 ): string {
-    const sequence = typeof sequenceDefinition === 'string'
-        ? { type: sequenceDefinition }
+    const sequence: SequenceDefinition = typeof sequenceDefinition === 'string'
+        ? { type: sequenceDefinition as SequenceDefinition['type'] }
         : sequenceDefinition;
     switch (sequence.type) {
         case 'transaction': {
@@ -111,7 +133,7 @@ function resolveSequenceValue(
     }
 }
 
-function applyLookup(lookupDefinition: LookupMap, value: unknown): unknown {
+function applyLookup(lookupDefinition: LookupMap, value: ScalarValue): ScalarValue {
     if (!lookupDefinition || typeof lookupDefinition !== 'object' || Array.isArray(lookupDefinition)) {
         throw new Error('lookup must be an object');
     }
@@ -125,7 +147,7 @@ function applyLookup(lookupDefinition: LookupMap, value: unknown): unknown {
     return value;
 }
 
-function applyTransform(transformName: string, value: unknown): string {
+function applyTransform(transformName: string, value: ScalarValue): string {
     switch (transformName) {
         case 'ddmmyyyy_to_yyyymmdd': {
             if (!value) return '';
@@ -150,7 +172,7 @@ function applyTransform(transformName: string, value: unknown): string {
     }
 }
 
-function applyFormat(formatName: string, value: unknown): string {
+function applyFormat(formatName: string, value: ScalarValue): string {
     switch (formatName) {
         case 'currency': {
             const numericValue = parseNumericValue(value);
@@ -163,7 +185,7 @@ function applyFormat(formatName: string, value: unknown): string {
     }
 }
 
-function applyFieldModifiers(fieldDefinition: FieldDefinitionObject, value: unknown): unknown {
+function applyFieldModifiers(fieldDefinition: FieldDefinitionObject, value: ScalarValue): ScalarValue {
     let result = value;
     if (fieldDefinition.lookup) result = applyLookup(fieldDefinition.lookup, result);
     if (fieldDefinition.transform) result = applyTransform(fieldDefinition.transform, result);
@@ -174,13 +196,13 @@ function applyFieldModifiers(fieldDefinition: FieldDefinitionObject, value: unkn
 async function resolveSourceValue(
     fieldDefinition: FieldDefinitionObject,
     context: SplitContext,
-): Promise<unknown> {
+): Promise<ScalarValue> {
     if (Object.prototype.hasOwnProperty.call(fieldDefinition, 'value')) return fieldDefinition.value;
     if (fieldDefinition.from) return context.row?.[fieldDefinition.from] ?? '';
     if (fieldDefinition.fromRoot) return context.root?.[fieldDefinition.fromRoot] ?? '';
     if (fieldDefinition.fromGroup) return resolveGroupValue(fieldDefinition.fromGroup, context);
     if (fieldDefinition.sequence) return resolveSequenceValue(fieldDefinition.sequence, context);
-    if (fieldDefinition.expr) return jexl.eval(fieldDefinition.expr, buildExpressionContext(context));
+    if (fieldDefinition.expr) return jexl.eval(fieldDefinition.expr, buildExpressionContext(context)) as ScalarValue;
     return '';
 }
 

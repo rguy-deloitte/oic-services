@@ -1,6 +1,9 @@
-import type { FieldDefinition, GeneratedOutputFile, OutputFileDefinition, TabularFile, TabularRow } from '../types.js';
 import type { RowSplitterConfig } from './configurations.js';
+import type { OutputFileDefinition } from './configurations.js';
+import type { FieldDefinition } from './field-resolver.js';
+import type { GeneratedOutputFile } from './files.js';
 import type { GroupRecord, GroupState, GroupStates, SplitContext } from './grouping.js';
+import type { TabularFile, TabularRow } from './tabular-parser.js';
 import { buildGroupDefinitions } from './grouping.js';
 import { resolveFieldValue } from './field-resolver.js';
 

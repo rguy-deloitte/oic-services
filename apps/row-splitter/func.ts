@@ -1,5 +1,5 @@
-import type { TabularFile } from './src/types.js';
 import type { RowSplitterConfig } from './src/services/configurations.js';
+import type { TabularFile } from './src/services/tabular-parser.js';
 import { loadTabularFile, loadConfigFile, saveZippedOutputFiles, saveTriggerFile } from './src/services/files.js';
 import { applySplitting } from './src/services/splitting.js';
 

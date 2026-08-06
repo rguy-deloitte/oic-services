@@ -1,4 +1,5 @@
-import type { TabularFile, TabularRow } from '../types.js';
+import type { TabularFile, TabularRow } from './tabular-parser.js';
+import type { GroupDefinition, GroupSequenceInput } from './configurations.js';
 
 export interface GroupSequenceConfig {
     prefix: string;
@@ -20,12 +21,6 @@ export interface GroupState {
     countConfig: GroupSequenceConfig | null;
     groups: GroupRecord[];
     rowToGroup: Map<TabularRow, { group: GroupRecord; rowIndex: number }>;
-}
-
-interface GroupDefinition {
-    groupBy: string[];
-    key?: Record<string, unknown>;
-    count?: Record<string, unknown>;
 }
 
 export type GroupStates = Record<string, GroupState>;
@@ -56,7 +51,7 @@ function groupRows(rows: TabularRow[], groupByFields: string[]): GroupRecord[] {
 }
 
 function normalizeGroupSequenceConfig(
-    config: Record<string, unknown>,
+    config: GroupSequenceInput,
     configName: string,
 ): GroupSequenceConfig {
     if (!config || typeof config !== 'object' || Array.isArray(config)) {
@@ -64,7 +59,7 @@ function normalizeGroupSequenceConfig(
     }
     const sequence = (
         Object.prototype.hasOwnProperty.call(config, 'sequence') ? config.sequence : config
-    ) as Record<string, unknown>;
+    );
     if (!sequence || typeof sequence !== 'object' || Array.isArray(sequence)) {
         throw new Error(`${configName} must be a sequence-like object`);
     }
@@ -94,7 +89,7 @@ function assignGroupMetadata(groupState: GroupState): void {
 
 export function buildGroupDefinitions(
     rows: TabularRow[],
-    groupsConfig: Record<string, unknown>,
+    groupsConfig: Record<string, GroupDefinition>,
 ): GroupStates {
     if (!groupsConfig) throw new Error('groups must be defined');
     if (typeof groupsConfig !== 'object' || Array.isArray(groupsConfig)) {

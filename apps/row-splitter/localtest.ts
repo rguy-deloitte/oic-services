@@ -3,11 +3,12 @@ import path from 'node:path';
 import JSZip from 'jszip';
 import dayjs from 'dayjs';
 import { load as jsYamlLoad } from 'js-yaml';
+import type { RowSplitterConfig } from './src/services/configurations.js';
+import type { GeneratedOutputFile } from './src/services/files.js';
 import { normalizeConfigDefinition } from './src/services/files.js';
 import { parseWorksheetBuffer } from './src/services/tabular-parser.js';
 import { applySplitting } from './src/services/splitting.js';
-import type { GeneratedOutputFile, StructureOptions, TabularFile } from './src/types.js';
-import type { RowSplitterConfig } from './src/services/configurations.js';
+import type { StructureOptions, TabularFile } from './src/services/tabular-parser.js';
 
 const sourceObjectPath = 'row-splitter/source/test/concur-ap-data.csv';
 const localBucketName = 'oci-object-storage';
@@ -31,13 +32,13 @@ function loadLocalConfigFile(configFilePath: string): RowSplitterConfig {
   return normalizeConfigDefinition(jsYamlLoad(readFileSync(configFilePath, 'utf8')));
 }
 
-function escapeCsvValue(value: unknown): string {
-  const stringValue = String(value);
+function escapeCsvValue(value: string): string {
+  const stringValue = value;
   if (!/[",\n\r]/.test(stringValue)) return stringValue;
   return `"${stringValue.replace(/"/g, '""')}"`;
 }
 
-function buildCsvBuffer(rows: Array<Record<string, unknown>>, includeHeader = true): Buffer {
+function buildCsvBuffer(rows: Array<Record<string, string>>, includeHeader = true): Buffer {
   const columnNames = rows.length > 0 ? Object.keys(rows[0]) : [];
   const csvLines: string[] = [];
   if (includeHeader && columnNames.length > 0) {

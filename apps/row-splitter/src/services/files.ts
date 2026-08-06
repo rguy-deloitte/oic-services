@@ -1,5 +1,5 @@
-import type { GeneratedOutputFile, StructureOptions, TabularFile } from '../types.js';
 import type { RowSplitterConfig } from './configurations.js';
+import type { StructureOptions, TabularFile } from './tabular-parser.js';
 import path from 'node:path';
 import JSZip from 'jszip';
 import { parse as parseYaml } from 'yaml';
@@ -7,6 +7,21 @@ import dayjs from 'dayjs';
 import { downloadObject, uploadObject } from './oci-storage.js';
 import { parseWorksheetBuffer } from './tabular-parser.js';
 import { normalizeConfigDefinition } from './configurations.js';
+
+export interface OutputCsvFile {
+    name: string;
+    format: 'csv';
+    includeHeader: boolean;
+    rows: Record<string, string>[];
+}
+
+export interface OutputTxtFile {
+    name: string;
+    format: 'txt';
+    content: string;
+}
+
+export type GeneratedOutputFile = OutputCsvFile | OutputTxtFile;
 
 export { normalizeConfigDefinition };
 
@@ -35,13 +50,13 @@ export async function loadConfigFile(
     return normalizeConfigDefinition(parseYaml(file.content.toString('utf8')));
 }
 
-function escapeCsvValue(value: unknown): string {
-    const stringValue = String(value);
+function escapeCsvValue(value: string): string {
+    const stringValue = value;
     if (!/[",\n\r]/.test(stringValue)) return stringValue;
     return `"${stringValue.replace(/"/g, '""')}"`;
 }
 
-function buildCsvBuffer(rows: Array<Record<string, unknown>>, includeHeader = true): Buffer {
+function buildCsvBuffer(rows: Array<Record<string, string>>, includeHeader = true): Buffer {
     const columnNames = rows.length > 0 ? Object.keys(rows[0]) : [];
     const csvLines: string[] = [];
     if (includeHeader && columnNames.length > 0) {

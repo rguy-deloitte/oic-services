@@ -1,6 +1,20 @@
-import type { StructureOptions, TabularFile, TabularRow } from '../types.js';
 import path from 'node:path';
 import * as XLSX from 'xlsx';
+
+export type TabularRow = Record<string, string>;
+type WorksheetCell = string | number | boolean | null | undefined;
+type WorksheetMatrix = WorksheetCell[][];
+
+export interface TabularFile {
+    filename: string;
+    basename: string;
+    rows: TabularRow[];
+}
+
+export interface StructureOptions {
+    headerRowPresent?: boolean;
+    ignoreHeaderRow?: boolean;
+}
 
 interface NormalizedWorksheetStructure {
     headerRowPresent: boolean;
@@ -22,7 +36,7 @@ function buildTabularFile(filename: string, rows: TabularRow[]): TabularFile {
     };
 }
 
-function getColumnNames(matrix: unknown[][], structure?: StructureOptions): string[] {
+function getColumnNames(matrix: WorksheetMatrix, structure?: StructureOptions): string[] {
     const { headerRowPresent, ignoreHeaderRow } = normalizeWorksheetStructure(structure);
     const dataRows = matrix.filter((row) => Array.isArray(row));
     const dataStartIndex = headerRowPresent ? 1 : 0;
@@ -44,7 +58,7 @@ function getColumnNames(matrix: unknown[][], structure?: StructureOptions): stri
     return Array.from({ length: maxColumns }, (_, index) => `C${index + 1}`);
 }
 
-function mapRowsToColumns(matrix: unknown[][], structure?: StructureOptions): TabularRow[] {
+function mapRowsToColumns(matrix: WorksheetMatrix, structure?: StructureOptions): TabularRow[] {
     const { headerRowPresent } = normalizeWorksheetStructure(structure);
     const worksheetRows = matrix.filter((row) => Array.isArray(row));
     const columnNames = getColumnNames(worksheetRows, structure);
@@ -76,6 +90,6 @@ export function parseWorksheetBuffer(
         raw: false,
         defval: '',
         blankrows: false,
-    }) as unknown[][];
+    }) as WorksheetMatrix;
     return buildTabularFile(filename, mapRowsToColumns(matrix, structure));
 }

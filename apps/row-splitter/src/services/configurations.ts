@@ -1,15 +1,37 @@
-import type { OutputFileDefinition, StructureOptions } from '../types.js';
+import type { StructureOptions } from './tabular-parser.js';
+import type { FieldDefinition, FieldDefinitionObject } from './field-resolver.js';
+
+export interface GroupSequenceInput {
+    sequence?: {
+        prefix?: string;
+        start?: number;
+    };
+    prefix?: string;
+    start?: number;
+}
+
+export interface GroupDefinition {
+    groupBy: string[];
+    key?: GroupSequenceInput;
+    count?: GroupSequenceInput;
+}
+
+export interface OutputFileDefinition {
+    format?: 'csv' | 'txt';
+    onePer?: string;
+    includeHeader?: boolean;
+    content?: string;
+    [key: string]: FieldDefinition | string | boolean | undefined;
+}
 
 export interface RowSplitterConfig {
     structure?: StructureOptions;
     files?: Record<string, OutputFileDefinition>;
-    groups?: Record<string, unknown>;
-    [key: string]: unknown;
+    groups?: Record<string, GroupDefinition>;
 }
 
-interface GroupDefinition {
-    key?: Record<string, unknown>;
-    count?: Record<string, unknown>;
+function isFieldDefinitionObject(value: FieldDefinition | string | boolean | undefined): value is FieldDefinitionObject {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function normalizeFilesDefinition(filesDefinition: unknown): Record<string, OutputFileDefinition> | undefined {
@@ -98,16 +120,11 @@ function validateFileFieldDefinitions(
             continue;
         }
 
-        if (
-            fieldDefinition
-            && typeof fieldDefinition === 'object'
-            && !Array.isArray(fieldDefinition)
-            && Object.prototype.hasOwnProperty.call(fieldDefinition, 'fromGroup')
-        ) {
+        if (isFieldDefinitionObject(fieldDefinition) && Object.prototype.hasOwnProperty.call(fieldDefinition, 'fromGroup')) {
             validateFromGroupReference(
                 fileName,
                 fieldName,
-                (fieldDefinition as Record<string, unknown>).fromGroup,
+                fieldDefinition.fromGroup,
                 groupsDefinition,
             );
         }
