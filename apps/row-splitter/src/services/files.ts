@@ -1,35 +1,14 @@
 import type { GeneratedOutputFile, StructureOptions, TabularFile } from '../types.js';
 import type { RowSplitterConfig } from './configurations.js';
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import JSZip from 'jszip';
 import { parse as parseYaml } from 'yaml';
-import { load as jsYamlLoad } from 'js-yaml';
 import dayjs from 'dayjs';
 import { downloadObject, uploadObject } from './oci-storage.js';
-import { parseWorksheetBuffer, parseJsonDocument } from './tabular-parser.js';
+import { parseWorksheetBuffer } from './tabular-parser.js';
 import { normalizeConfigDefinition } from './configurations.js';
 
 export { normalizeConfigDefinition };
-
-function parseTabularContent(
-    filename: string,
-    content: Buffer,
-    structure?: StructureOptions,
-): Promise<TabularFile> | TabularFile {
-    const extension = path.extname(filename).toLowerCase();
-
-    switch (extension) {
-        case '.csv':
-        case '.xls':
-        case '.xlsx':
-            return parseWorksheetBuffer(filename, content, structure);
-        case '.json':
-            return parseJsonDocument(filename, JSON.parse(content.toString('utf8')));
-        default:
-            throw new Error(`Unsupported file extension: ${extension || '<none>'}`);
-    }
-}
 
 export async function loadTabularFile(
     filename: string,
@@ -38,7 +17,13 @@ export async function loadTabularFile(
     structure?: StructureOptions,
 ): Promise<TabularFile> {
     const { content } = await downloadObject(filename, bucketName, namespaceName);
-    return parseTabularContent(filename, content, structure);
+    const extension = path.extname(filename).toLowerCase();
+
+    if (extension !== '.csv' && extension !== '.xls' && extension !== '.xlsx') {
+        throw new Error(`Unsupported file extension: ${extension || '<none>'}`);
+    }
+
+    return parseWorksheetBuffer(filename, content, structure);
 }
 
 export async function loadConfigFile(

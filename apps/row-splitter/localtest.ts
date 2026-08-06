@@ -4,7 +4,7 @@ import JSZip from 'jszip';
 import dayjs from 'dayjs';
 import { load as jsYamlLoad } from 'js-yaml';
 import { normalizeConfigDefinition } from './src/services/files.js';
-import { parseJsonDocument, parseWorksheetBuffer } from './src/services/tabular-parser.js';
+import { parseWorksheetBuffer } from './src/services/tabular-parser.js';
 import { applySplitting } from './src/services/splitting.js';
 import type { GeneratedOutputFile, StructureOptions, TabularFile } from './src/types.js';
 import type { RowSplitterConfig } from './src/services/configurations.js';
@@ -20,16 +20,11 @@ async function loadLocalTabularFile(filename: string, structure?: StructureOptio
   const content = await fsPromises.readFile(filename);
   const extension = path.extname(filename).toLowerCase();
 
-  switch (extension) {
-    case '.csv':
-    case '.xls':
-    case '.xlsx':
-      return parseWorksheetBuffer(filename, content, structure);
-    case '.json':
-      return parseJsonDocument(filename, JSON.parse(content.toString('utf8')));
-    default:
-      throw new Error(`Unsupported file extension: ${extension || '<none>'}`);
+  if (extension !== '.csv' && extension !== '.xls' && extension !== '.xlsx') {
+    throw new Error(`Unsupported file extension: ${extension || '<none>'}`);
   }
+
+  return parseWorksheetBuffer(filename, content, structure);
 }
 
 function loadLocalConfigFile(configFilePath: string): RowSplitterConfig {

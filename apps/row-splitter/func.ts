@@ -37,11 +37,8 @@ const handler = async (event: ObjectStorageEvent = {}) => {
   // Config path is objectName with "row-splitter/source/" replaced by "row-splitter/config/" and filename replaced, e.g. "row-splitter/source/config1/data.csv" -> "row-splitter/config/config1/config.yaml"
   let configFilePath: string = sourceFilePath.replace(/^row-splitter\/source\//, 'row-splitter/config/').replace(/\/[^\/]+$/, '/config.yaml');
 
-  let configFile: RowSplitterConfig;
-  let sourceFile: TabularFile;
-
-  configFile = await loadConfigFile(configFilePath, bucketName, namespaceName);
-  sourceFile = await loadTabularFile(sourceFilePath, bucketName, namespaceName, configFile.structure);
+  let configFile: RowSplitterConfig = await loadConfigFile(configFilePath, bucketName, namespaceName);
+  let sourceFile: TabularFile = await loadTabularFile(sourceFilePath, bucketName, namespaceName, configFile.structure);
 
   if (!configFile || !configFile.files) {
     throw new Error('Config file is missing required properties: files');

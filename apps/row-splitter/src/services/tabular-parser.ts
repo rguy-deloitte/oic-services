@@ -79,15 +79,3 @@ export function parseWorksheetBuffer(
     }) as unknown[][];
     return buildTabularFile(filename, mapRowsToColumns(matrix, structure));
 }
-
-// Supports arrays of rows, objects with a rows property, or any other value wrapped as a single row.
-export function parseJsonDocument(filename: string, parsedJson: unknown): TabularFile {
-    if (Array.isArray(parsedJson)) {
-        return buildTabularFile(filename, parsedJson as TabularRow[]);
-    }
-    if (parsedJson && typeof parsedJson === 'object' && Array.isArray((parsedJson as any).rows)) {
-        const parsedObject = parsedJson as Record<string, unknown> & { rows: TabularRow[] };
-        return { ...parsedObject, ...buildTabularFile(filename, parsedObject.rows) };
-    }
-    return buildTabularFile(filename, [parsedJson as TabularRow]);
-}
