@@ -76,8 +76,10 @@ The config must contain:
 - `files` — Defines the output structure
 
 Optional top-level fields:
-- `structure` — Describes the source file structure (header rows, column format)
-- `groups` — Defines one-to-many relationships between output files
+- `configVersion` — Tracks the version of the configuration document
+- `sourceFile` — Describes how the source file should be interpreted
+- `outputFile` — Describes zip output naming and can also hold string values used by other applications
+- `groups` — Defines reusable groups based on repeated values in the source rows
 
 ### Files
 
@@ -129,19 +131,21 @@ Supported source options:
 | `value` | A constant string value that is used for all rows |
 | `from` | Defines the column in the source file from which to take the value |
 | `fromRoot` | Defines an item of metadata that should be used as the value. This can be `filename` for the source file full path, or `basename` for just the source filename |
-| `fromGroup` | This key can be used if a group has been defined and is detailed [below](#grouping) |
-| `sequence` | An integer with a start value which counts up with each row |
+| `fromGroup` | Reads a generated group value such as `customer_order.key` or `customer_order.count` |
+| `sequence` | A generated sequence value that can use `start` and `prefix`; if `start` is quoted like `'001'`, the zero padding is preserved |
 | `expr` | Allows an expression in order to perform some processing of values, like adding two values together. This is detailed [below](#expressions) |
 
-If output files reference `fromGroup`, the config must also contain `groups`. This is detailed [below](#grouping).
+If output files reference `fromGroup`, the config must also contain `groups`, and each `fromGroup` value must use the full `groupName.key` or `groupName.count` form. This is detailed [below](#grouping).
 
 ### Grouping
 
-Groups define one-to-many relationships within the source data. For example, if source rows contain customer data repeated for each order, grouping lets you extract unique customers once and associate multiple orders with each customer.
+Groups are optional. If a file does not use `onePer`, it produces one output row for each source row. This is useful when you want multiple output files with different columns or different column order, but the same number of rows as the source data.
+
+Use groups when the source data has repeated values that represent a parent record. For example, if several source rows repeat the same customer information, a group lets you write that customer once in one file while keeping the repeated order rows in another file.
 
 #### Defining a Group
 
-Specify which source columns define a unique group using `groupBy`:
+Specify which source columns define a unique grouped record using `groupBy`:
 
 ```yaml
 groups:
@@ -151,13 +155,18 @@ groups:
       - invoice_address
 ```
 
-Rows with identical values in these columns belong to the same group. Once defined, apply the group to output files:
+Rows with identical values in these columns belong to the same group.
+
+#### Using `onePer`
+
+Use `onePer` on a file when you want that file to contain one row per grouped record rather than one row per source row.
 
 ```yaml
 files:
   customers.csv:
-    group: customer_order
-    mode: group
+    onePer: customer_order
+    customer_id:
+      fromGroup: customer_order.key
     customer_name:
       from: invoice_recipient_name
     customer_address:
@@ -166,17 +175,27 @@ files:
       value: UK
 
   orders.csv:
-    group: customer_order
-    mode: row
+    customer_id:
+      fromGroup: customer_order.key
+    line_number:
+      fromGroup: customer_order.count
     quantity:
       from: quantity
     description:
       from: item_description
-    per_unit_cost:
-      from: price
 ```
 
-This group demonstrates the `groupBy` key. This configures which columns in the source file which define a unique customer. Any source rows with the same `invoice_recipient_name` and `invoice_address` will define a new unique customer. Once this is defined, each output file can be configured to list only the grouped unique values, in this case `customers.csv`. And `orders.csv` can be configured to list all rows, with each associated with a customer row:
+In this example:
+
+- `customers.csv` uses `onePer: customer_order`, so repeated customer rows are collapsed into one output row per customer.
+- `orders.csv` does not use `onePer`, so it keeps one row per source row.
+- Both files can still use `fromGroup: customer_order.key`, which is what links the child rows back to the parent rows.
+
+This means `onePer` controls how many rows a file produces. `fromGroup` controls how files share generated group values such as parent keys and row counts.
+
+#### Generated Group Values
+
+Groups can optionally generate a `key` and a `count`:
 
 ```yaml
 groups:
@@ -192,16 +211,36 @@ groups:
       start: 1
 ```
 
-The `key` generates a unique identifier for each group (e.g., `CUST100000`, `CUST100001`). The `count` starts fresh for each group, counting from the specified start value.
+- `key` is usually used to link files together.
+- `count` is usually used when you need numbering within each parent group.
+- If `start` is written as a quoted numeric string such as `'001'`, the generated values keep that width, for example `001`, `002`, `003`.
 
-These generators are referenced using `fromGroup`:
+If you want the group key to include a Unix epoch in milliseconds, use a `format` string with `{epoch}` and `{sequence}` placeholders:
+
+```yaml
+groups:
+  customer_order:
+    groupBy:
+      - invoice_recipient_name
+      - invoice_address
+    key:
+      format: CUST{epoch}-{sequence}
+      sequenceStart: '001'
+```
+
+In that form:
+
+- `{epoch}` is a raw Unix epoch in milliseconds.
+- `{sequence}` is the per-group sequence value.
+- the epoch is captured once when the grouped keys are generated, so all keys from the same group definition in that run share the same epoch value.
+
+These values are referenced using `fromGroup`:
 
 ```yaml
 files:
   customers.csv:
-    group: customer_order
-    mode: group
-    
+    onePer: customer_order
+
     customer_id:
       fromGroup: customer_order.key
     customer_name:
@@ -212,9 +251,6 @@ files:
       value: UK
 
   orders.csv:
-    group: customer_order
-    mode: row
-    
     customer_id:
       fromGroup: customer_order.key
     line_number:
@@ -227,14 +263,73 @@ files:
       from: price
 ```
 
-So the `customer_id` column is shared by both files and links orders to customers.
+`fromGroup` must always name the group explicitly. For example, use `customer_order.key` rather than just `key`.
 
-### Structure Options
+#### Parent, Child, and Grandchild Files
 
-The optional `structure` block controls how worksheet columns are mapped for CSV and XLSX input files.
+Groups can also be used across more than two files. For example:
 
 ```yaml
-structure:
+groups:
+  order:
+    groupBy:
+      - order_number
+    key:
+      prefix: ORD
+      start: 1000
+
+  line:
+    groupBy:
+      - order_number
+      - line_number
+    key:
+      prefix: LIN
+      start: 10000
+
+  distribution:
+    groupBy:
+      - order_number
+      - line_number
+      - distribution_number
+    key:
+      prefix: DST
+      start: 100000
+
+files:
+  orders.csv:
+    onePer: order
+    order_id:
+      fromGroup: order.key
+
+  lines.csv:
+    onePer: line
+    order_id:
+      fromGroup: order.key
+    line_id:
+      fromGroup: line.key
+
+  distributions.csv:
+    onePer: distribution
+    order_id:
+      fromGroup: order.key
+    line_id:
+      fromGroup: line.key
+    distribution_id:
+      fromGroup: distribution.key
+```
+
+In that example:
+
+- `orders.csv` has one row per order.
+- `lines.csv` has one row per line and carries the order key.
+- `distributions.csv` has one row per distribution and carries both the order key and the line key.
+
+### Source File Options
+
+The optional `sourceFile` block controls how worksheet columns are mapped for CSV and XLSX input files.
+
+```yaml
+sourceFile:
   headerRowPresent: true
   ignoreHeaderRow: true
 ```
@@ -244,7 +339,44 @@ Behavior:
 - `headerRowPresent: true` and `ignoreHeaderRow: true`: skip the first row and use `C1`, `C2`, `C3`, and so on.
 - `headerRowPresent: true` and `ignoreHeaderRow: false` or omitted: skip the first row and use the first row values as property names.
 - `headerRowPresent: false`: treat the first row as data and use `C1`, `C2`, `C3`, and so on.
-- If `structure` is omitted, both values are treated as `false`.
+- If `sourceFile` is omitted, both values are treated as `false`.
+
+### Output File Options
+
+The optional `outputFile` block controls how the zip output is named. It can also contain additional string values for use by other applications.
+
+Fixed zip filename:
+
+```yaml
+outputFile:
+  zip:
+    name: ResourceLink.zip
+```
+
+Formatted zip filename:
+
+```yaml
+outputFile:
+  zip:
+    format: "{inputName}_{timestamp}.zip"
+```
+
+Supported placeholders:
+
+- `{inputName}` — the input filename without its extension
+- `{timestamp}` — the current timestamp in `YYYYMMDDHHmmss` format
+
+If `outputFile.zip` is omitted, the default zip name remains `{inputName}_{timestamp}.zip`.
+
+You can also include additional string-valued keys in `outputFile` for use by other applications:
+
+```yaml
+outputFile:
+  zip:
+    format: "{inputName}_{timestamp}.zip"
+  externalSystem: FinanceBridge
+  documentCategory: resource-link
+```
 
 ### Advanced Formatting
 
@@ -348,18 +480,23 @@ Refer to the [main repository README](../../README.md) for full deployment and i
 
 ### Event Payload Requirements
 
-The function expects these Object Storage event fields:
+The deployed OCI function expects these Object Storage event fields:
 
 - `data.resourceName`
 - `data.additionalDetails.bucketName`
 - `data.additionalDetails.namespace`
 
-### To run the RowSplitter function locally
+### Local Config Testing
 
-Configure `localtest.js` as follows:
+`npm run localtest` does not invoke the OCI function handler. It is a local config-validation tool used to test a source file and its matching `config.yaml` before uploading the config to the cloud environment.
 
-- `resourceName` (local source file)
-- `additionalDetails.bucketName` (local folder)
-- `additionalDetails.namespace: 'localtest'` (already done)
+The local test runner:
 
-Then run: `node localtest.js`
+1. Loads the local source file from the `oci-object-storage` folder.
+2. Loads the matching local `config.yaml`.
+3. Runs `applySplitting` directly against the source data.
+4. Writes a zip file and `done.trg` file into the local processed folder.
+
+Configure `localtest.ts` with the source object path you want to test. The script assumes the file lives within the local `oci-object-storage/row-splitter/...` structure and derives the matching config and output paths automatically.
+
+Then run: `npm run localtest`

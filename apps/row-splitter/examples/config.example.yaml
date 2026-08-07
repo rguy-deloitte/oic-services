@@ -1,3 +1,5 @@
+configVersion: 1
+
 groups:
   transaction:
     groupBy:
@@ -10,14 +12,17 @@ groups:
       prefix: ''
       start: 1
 
-structure:
+sourceFile:
   headerRowPresent: true
   ignoreHeaderRow: true
 
+outputFile:
+  zip:
+    format: "{inputName}_{timestamp}.zip"
+
 files:
   XlaTrxH.csv:
-    group: transaction
-    mode: group
+    onePer: transaction
 
     TRANSACTION_NUMBER:
       fromGroup: transaction.key
@@ -57,8 +62,6 @@ files:
             from: C9
 
   XlaTrxL.csv:
-    group: transaction
-    mode: row
 
     TRANSACTION_NUMBER:
       fromGroup: transaction.key

@@ -2,9 +2,15 @@
 	"name": "row-splitter",
 	"version": "1.0.0",
 	"description": "Row splitting OCI Function",
-	"main": "func.js",
+	"main": "dist/func.js",
 	"author": "",
 	"license": "Apache-2.0",
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"clean": "rm -rf dist",
+		"typecheck": "tsc --noEmit -p tsconfig.json",
+		"localtest": "npm run build && (cd ../.. && node apps/row-splitter/dist/localtest.js)"
+	},
 	"dependencies": {
 		"@fnproject/fdk": ">=0.0.98",
 		"dayjs": "^1.11.21",
@@ -15,6 +21,10 @@
 		"oci-objectstorage": "^2.132.0",
 		"xlsx": "^0.18.5",
 		"yaml": "^2.9.0"
+	},
+	"devDependencies": {
+		"@types/node": "^22.15.30",
+		"typescript": "^5.8.3"
 	},
 	"overrides": {
 		"whatwg-url": "17.1.0"

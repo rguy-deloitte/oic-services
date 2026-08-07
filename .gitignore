@@ -1,7 +1,12 @@
 # compiled output
-/dist
+dist
 /node_modules
 /build
+**/node_modules/
+**/dist/
+**/build/
+*.tsbuildinfo
+.npm-cache/
 
 # Sample Data
 oci-object-storage/*/source/*
@@ -40,7 +45,18 @@ lerna-debug.log*
 
 # dotenv environment variable files
 .env
-.*.env
+*/.env
+
+# Package manager caches (optional)
+.npm/
+.pnpm-store/
+.pnp.*
+.yarn/*
+!.yarn/patches/
+!.yarn/plugins/
+!.yarn/releases/
+!.yarn/sdks/
+!.yarn/versions/
 
 # temp directory
 .temp
@@ -70,5 +86,9 @@ crash.log
 crash.*.log
 *.tfvars
 *.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 .terraformrc
 terraform.rc

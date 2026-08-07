@@ -1,21 +1,22 @@
+configVersion: 1
+
 groups:
   transaction:
     groupBy:
       - Transaction Type
     key:
-      prefix: LCKUKHR
-      start: 1000000005000
+      format: LCKUKHR{epoch}{sequence}
+      sequenceStart: '001'
     count:
       start: 1
 
-structure:
+sourceFile:
   headerRowPresent: true
   ignoreHeaderRow: false
 
 files:
   XlaTrxH.csv:
-    group: transaction
-    mode: group
+    onePer: transaction
 
     TRANSACTION_NUMBER:
       fromGroup: transaction.key
@@ -29,81 +30,252 @@ files:
     TRANSACTION_DATE:
       from: Effective Date
       transform: ddmmyyyy_to_yyyymmdd
-    
-    repeat:
-      - prefix: Character
-        start: 1
-        end: 50
-        fields:
-          EVENT_TYPE:
-            from: Transaction Type
-            lookup:
-              Headcount: LOCKTON RESOURCE LINK HEADCOUNT
-              Payroll: LOCKTON RESOURCE LINK PAYROLL
-          REVERSAL_FLAG:
-            value: N
-          SOURCE_SYSTEM_NAME:
-            value: UKResourceLink
-          SOURCE_SYSTEM_FILE_NAME:
-            fromRoot: basename
-          TRANS_TYPE:
-            from: Transaction Type
-
-      - prefix: Number
-        end: 10
-
-      - prefix: Date
-        end: 10
-
-      - prefix: Long Character
-        end: 5
+    EVENT_TYPE:
+      from: Transaction Type
+      lookup:
+        Headcount: LOCKTON RESOURCE LINK HEADCOUNT
+        Payroll: LOCKTON RESOURCE LINK PAYROLL
+    REVERSAL_FLAG:
+      value: N
+    SOURCE_SYSTEM_NAME:
+      value: UKResourceLink
+    SOURCE_SYSTEM_FILE_NAME:
+      fromRoot: basename
+    TRANS_TYPE:
+      from: Transaction Type
+    Character6:
+    Character7:
+    Character8:
+    Character9:
+    Character10:
+    Character11:
+    Character12:
+    Character13:
+    Character14:
+    Character15:
+    Character16:
+    Character17:
+    Character18:
+    Character19:
+    Character20:
+    Character21:
+    Character22:
+    Character23:
+    Character24:
+    Character25:
+    Character26:
+    Character27:
+    Character28:
+    Character29:
+    Character30:
+    Character31:
+    Character32:
+    Character33:
+    Character34:
+    Character35:
+    Character36:
+    Character37:
+    Character38:
+    Character39:
+    Character40:
+    Character41:
+    Character42:
+    Character43:
+    Character44:
+    Character45:
+    Character46:
+    Character47:
+    Character48:
+    Character49:
+    Character50:
+    Number1:
+    Number2:
+    Number3:
+    Number4:
+    Number5:
+    Number6:
+    Number7:
+    Number8:
+    Number9:
+    Number10:
+    Date1:
+    Date2:
+    Date3:
+    Date4:
+    Date5:
+    Date6:
+    Date7:
+    Date8:
+    Date9:
+    Date10:
+    Long Character2:
+    Long Character2:
+    Long Character3:
+    Long Character4:
+    Long Character5:
 
   XlaTrxL.csv:
-    group: transaction
-    mode: row
 
     TRANSACTION_NUMBER:
       fromGroup: transaction.key
     LINE_NUMBER:
       fromGroup: transaction.count
-    
-    repeat:
-      - prefix: Character
-        start: 1
-        end: 100
-        fields:
-          DEFAULT_CURRENCY:
-            from: Currency
-          DESCRIPTION:
-            from: Description
-          ACCOUNT:
-            from: Account
-          CHARTFIELD_2:
-            from: Chartfield2
-          BUSINESS_UNIT:
-            from: Business Unit
-          OPERATING_UNIT:
-            from: Operating Unit
-          DEPARTMENT:
-            from: Department
-          AFFILIATE:
-            from: Affiliate
-          PROJECT_CODE:
-            from: Project Code
-
-      - prefix: Number
-        end: 30
-        fields:
-          DEFAULT_AMOUNT:
-            from: Amount
-            format: currency
-          LINE_NO:
-
-      - prefix: Date
-        end: 10
-
-      - prefix: Long Character
-        end: 5
+    DEFAULT_CURRENCY:
+      from: Currency
+    DESCRIPTION:
+      from: Description
+    ACCOUNT:
+      from: Account
+    CHARTFIELD_2:
+      from: Chartfield2
+    BUSINESS_UNIT:
+      from: Business Unit
+    OPERATING_UNIT:
+      from: Operating Unit
+    DEPARTMENT:
+      from: Department
+    AFFILIATE:
+      from: Affiliate
+    PROJECT_CODE:
+      from: Project Code
+    Character10:
+    Character11:
+    Character12:
+    Character13:
+    Character14:
+    Character15:
+    Character16:
+    Character17:
+    Character18:
+    Character19:
+    Character20:
+    Character21:
+    Character22:
+    Character23:
+    Character24:
+    Character25:
+    Character26:
+    Character27:
+    Character28:
+    Character29:
+    Character30:
+    Character31:
+    Character32:
+    Character33:
+    Character34:
+    Character35:
+    Character36:
+    Character37:
+    Character38:
+    Character39:
+    Character40:
+    Character41:
+    Character42:
+    Character43:
+    Character44:
+    Character45:
+    Character46:
+    Character47:
+    Character48:
+    Character49:
+    Character50:
+    Character51:
+    Character52:
+    Character53:
+    Character54:
+    Character55:
+    Character56:
+    Character57:
+    Character58:
+    Character59:
+    Character60:
+    Character61:
+    Character62:
+    Character63:
+    Character64:
+    Character65:
+    Character66:
+    Character67:
+    Character68:
+    Character69:
+    Character70:
+    Character71:
+    Character72:
+    Character73:
+    Character74:
+    Character75:
+    Character76:
+    Character77:
+    Character78:
+    Character79:
+    Character80:
+    Character81:
+    Character82:
+    Character83:
+    Character84:
+    Character85:
+    Character86:
+    Character87:
+    Character88:
+    Character89:
+    Character90:
+    Character91:
+    Character92:
+    Character93:
+    Character94:
+    Character95:
+    Character96:
+    Character97:
+    Character98:
+    Character99:
+    Character100:
+    DEFAULT_AMOUNT:
+      from: Amount
+      format: currency
+    LINE_NO:
+    Number3:
+    Number4:
+    Number5:
+    Number6:
+    Number7:
+    Number8:
+    Number9:
+    Number10:
+    Number11:
+    Number12:
+    Number13:
+    Number14:
+    Number15:
+    Number16:
+    Number17:
+    Number18:
+    Number19:
+    Number20:
+    Number21:
+    Number22:
+    Number23:
+    Number24:
+    Number25:
+    Number26:
+    Number27:
+    Number28:
+    Number29:
+    Number30:
+    Date1:
+    Date2:
+    Date3:
+    Date4:
+    Date5:
+    Date6:
+    Date7:
+    Date8:
+    Date9:
+    Date10:
+    Long Character1:
+    Long Character2:
+    Long Character3:
+    Long Character4:
+    Long Character5:
 
   Metadata_LTN_RSRCE_LINK.txt:
     format: txt

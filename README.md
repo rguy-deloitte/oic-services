@@ -35,24 +35,25 @@ This repository is organized as a monorepo to support multiple applications:
 ```
 oic-services/
 ├── apps/
-│   ├── row-splitter/          # Individual application with its own Dockerfile and config
+│   ├── row-splitter/           # Individual application with its own Dockerfile and config
 │   │   ├── Dockerfile
-│   │   ├── func.js
+│   │   ├── func.ts
 │   │   ├── func.yaml
 │   │   ├── README.md           # App-specific documentation
-│   │   ├── localtest.js
+│   │   ├── localtest.ts
 │   │   ├── package.json
-│   │   ├── src/
+│      ├── src/
 │   │   └── examples/
-│   └── <new-app>/             # Pattern for future applications
+│   └── <new-app>/              # Pattern for future applications
 ├── oci-object-storage/         # Object storage configuration and test data
-│   ├── config/                # Configuration files by data type
-│   └── in/                    # Input test data by data type
-├── docker-bake.hcl            # Multi-app Docker build configuration
-├── main.tf, variables.tf      # Terraform infrastructure as code
-├── terraform.tfvars           # Terraform variables (configure locally)
-├── Makefile                   # Build and deployment tasks
-└── README.md                  # This file
+│   ├── row-splitter/           # App-specific files
+│   │   ├── source/             # Input test data for row-splitter
+│   │   └── config/             # Files defining the formatting for row-splitter
+├── docker-bake.hcl             # Multi-app Docker build configuration
+├── main.tf, variables.tf       # Terraform infrastructure as code
+├── terraform.tfvars            # Terraform variables (configure locally)
+├── Makefile                    # Build and deployment tasks
+└── README.md                   # This file
 ```
 
 - Each app under `apps/` contains its own Dockerfile and runtime configuration
@@ -69,7 +70,7 @@ Before deploying, ensure you have:
 - Access to an OCI Container Registry
 - An OCI compartment for deployment
 
-### Configure Terraform and Environmental Variables
+### Configure Environmental Variables
 
 Create a `terraform.tfvars` file in the repository root with your OCI details:
 
@@ -114,7 +115,7 @@ To build all applications at once, you can use ```npm``` commands. These will lo
 npm run build:all
 ```
 
-To also push all the images, you can add the optional ```--push``` flag:
+To also push all the images, you can use ```deploy:all```:
 
 ```bash
 npm run deploy:all
@@ -134,9 +135,7 @@ npm run deploy:row-splitter    # Build and push
 
 ### Deploy Infrastructure
 
-Once Docker images are built and pushed set the image paths within `terraform.tfvars`:
-
-After pushing, update `terraform.tfvars` with the image path:
+Once Docker images are built and pushed set the image paths within `terraform.tfvars`.
 
 ```hcl
 row_splitter_image_path = "lhr.ocir.io/[repositoryNamespace]/row-splitter"

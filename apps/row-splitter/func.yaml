@@ -4,4 +4,4 @@ version: 0.0.1
 runtime: docker
 build_image: fnproject/node:22-dev
 run_image: fnproject/node:22
-entrypoint: node func.js
+entrypoint: node dist/func.js
