@@ -35,24 +35,25 @@ This repository is organized as a monorepo to support multiple applications:
 ```
 oic-services/
 ├── apps/
-│   ├── row-splitter/          # Individual application with its own Dockerfile and config
+│   ├── row-splitter/           # Individual application with its own Dockerfile and config
 │   │   ├── Dockerfile
 │   │   ├── func.ts
 │   │   ├── func.yaml
 │   │   ├── README.md           # App-specific documentation
 │   │   ├── localtest.ts
 │   │   ├── package.json
-│   │   ├── src/
+│      ├── src/
 │   │   └── examples/
-│   └── <new-app>/             # Pattern for future applications
+│   └── <new-app>/              # Pattern for future applications
 ├── oci-object-storage/         # Object storage configuration and test data
-│   ├── config/                # Configuration files by data type
-│   └── in/                    # Input test data by data type
-├── docker-bake.hcl            # Multi-app Docker build configuration
-├── main.tf, variables.tf      # Terraform infrastructure as code
-├── terraform.tfvars           # Terraform variables (configure locally)
-├── Makefile                   # Build and deployment tasks
-└── README.md                  # This file
+│   ├── row-splitter/           # App-specific files
+│   │   ├── source/             # Input test data for row-splitter
+│   │   └── config/             # Files defining the formatting for row-splitter
+├── docker-bake.hcl             # Multi-app Docker build configuration
+├── main.tf, variables.tf       # Terraform infrastructure as code
+├── terraform.tfvars            # Terraform variables (configure locally)
+├── Makefile                    # Build and deployment tasks
+└── README.md                   # This file
 ```
 
 - Each app under `apps/` contains its own Dockerfile and runtime configuration
