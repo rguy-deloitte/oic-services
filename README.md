@@ -183,6 +183,13 @@ Most applications include local testing capabilities. Refer to the individual ap
 
 - [Row Splitter Local Testing](./apps/row-splitter/README.md#developer-instructions)
 
+You can also run local tests from the repository root using npm:
+
+```bash
+npm run localtest:row-splitter   # Run local test for Row Splitter only
+npm run localtest:all            # Run local tests for all apps
+```
+
 ### Repository Details
 
 - **Compartment**: First-time image pushes may require moving the image to the correct compartment

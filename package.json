@@ -10,7 +10,9 @@
 		"build:row-splitter": "set -a && . ./.env && set +a && docker buildx bake -f docker-bake.hcl row-splitter",
 		"deploy:row-splitter": "set -a && . ./.env && set +a && docker buildx bake -f docker-bake.hcl row-splitter --push",
 		"build:all": "set -a && . ./.env && set +a && docker buildx bake -f docker-bake.hcl",
-		"deploy:all": "set -a && . ./.env && set +a && docker buildx bake -f docker-bake.hcl --push"
+		"deploy:all": "set -a && . ./.env && set +a && docker buildx bake -f docker-bake.hcl --push",
+		"localtest:row-splitter": "npm run localtest --workspace=row-splitter",
+		"localtest:all": "npm run localtest --workspaces --if-present"
 	},
 	"packageManager": "npm@10.0.0"
 }
