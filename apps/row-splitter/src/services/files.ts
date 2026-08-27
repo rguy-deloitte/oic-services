@@ -34,8 +34,9 @@ export async function loadTabularFile(
     bucketName: string,
     namespaceName: string,
     structure?: StructureOptions,
+    downloadFunction: Function = downloadObject,
 ): Promise<TabularFile> {
-    const { content } = await downloadObject(filename, bucketName, namespaceName);
+    const { content } = await downloadFunction(filename, bucketName, namespaceName);
     const extension = path.extname(filename).toLowerCase();
 
     if (extension !== '.csv' && extension !== '.xls' && extension !== '.xlsx') {
@@ -49,8 +50,9 @@ export async function loadConfigFile(
     configFilePath: string,
     bucketName: string,
     namespaceName: string,
+    downloadFunction: Function = downloadObject,
 ): Promise<RowSplitterConfig> {
-    const file = await downloadObject(configFilePath, bucketName, namespaceName);
+    const file = await downloadFunction(configFilePath, bucketName, namespaceName);
     return normalizeConfigDefinition(parseYaml(file.content.toString('utf8')));
 }
 
@@ -128,6 +130,7 @@ export async function saveZippedOutputFiles(
     namespaceName: string,
     inputObjectName: string,
     outputFile?: OutputFileSettings,
+    uploadFunction: Function = uploadObject,
 ): Promise<void> {
     if (!outputDirectory) throw new Error('outputDirectory is required');
     if (!bucketName || !namespaceName) {
@@ -140,13 +143,14 @@ export async function saveZippedOutputFiles(
     const zipContent = await buildZipContent(outputFiles);
     const zipFileName = resolveZipFileName(inputObjectName, outputFile);
 
-    await uploadObject(normalizedDir, zipFileName, zipContent, 'application/zip', bucketName, namespaceName);
+    await uploadFunction(normalizedDir, zipFileName, zipContent, 'application/zip', bucketName, namespaceName);
 }
 
 export async function saveTriggerFile(
     outputDirectory: string,
     bucketName: string,
     namespaceName: string,
+    uploadFunction: Function = uploadObject,
 ): Promise<void> {
     if (!outputDirectory) throw new Error('outputDirectory is required');
     if (!bucketName || !namespaceName) {
@@ -154,5 +158,5 @@ export async function saveTriggerFile(
     }
     const normalizedDir = outputDirectory.endsWith('/') ? outputDirectory : `${outputDirectory}/`;
 
-    await uploadObject(normalizedDir, 'done.trg', Buffer.alloc(0), 'text/plain', bucketName, namespaceName);
+    await uploadFunction(normalizedDir, 'done.trg', Buffer.alloc(0), 'text/plain', bucketName, namespaceName);
 }

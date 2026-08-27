@@ -24,12 +24,27 @@ const handler = async (event: ObjectStorageEvent = {}) => {
     throw new Error('Object Storage event must include data.resourceName, data.additionalDetails.bucketName, and data.additionalDetails.namespace');
   }
 
-  // Check that the objectName starts with "in/" and throw an error if it doesn't
+  // Check that the objectName starts with "row-splitter/source/" and throw an error if it doesn't
   if (!sourceFilePath.startsWith('row-splitter/source/')) {
     throw new Error(`Object name must start with "row-splitter/source/", but got: ${sourceFilePath}`);
   }
 
-  console.log(`v0.0.9 - Processing file: ${sourceFilePath}`);
+  await processFile(sourceFilePath, bucketName, namespaceName);
+
+  return {
+    ok: true,
+    message: `Successfully processed file: ${sourceFilePath}`,
+  };
+};
+
+async function processFile(sourceFilePath: string, bucketName: string, namespaceName: string, 
+                           downloadFunction?: Function | undefined, uploadFunction?: Function | undefined): Promise<void> {
+  // Check that the sourceFilePath starts with "row-splitter/source/" and throw an error if it doesn't
+  if (!sourceFilePath.startsWith('row-splitter/source/')) {
+    throw new Error(`Object name must start with "row-splitter/source/", but got: ${sourceFilePath}`);
+  }
+
+  console.log(`Processing file: ${sourceFilePath}`);
   
   // Output directory is objectName with "row-splitter/source/" replaced by "row-splitter/processed/" and filename removed, e.g. "row-splitter/source/config1/data.csv" -> "row-splitter/processed/config1/"
   let outputDirectory: string = sourceFilePath.replace(/^row-splitter\/source\//, 'row-splitter/processed/').replace(/\/[^\/]+$/, '/');
@@ -37,8 +52,8 @@ const handler = async (event: ObjectStorageEvent = {}) => {
   // Config path is objectName with "row-splitter/source/" replaced by "row-splitter/config/" and filename replaced, e.g. "row-splitter/source/config1/data.csv" -> "row-splitter/config/config1/config.yaml"
   let configFilePath: string = sourceFilePath.replace(/^row-splitter\/source\//, 'row-splitter/config/').replace(/\/[^\/]+$/, '/config.yaml');
 
-  let configFile: RowSplitterConfig = await loadConfigFile(configFilePath, bucketName, namespaceName);
-  let sourceFile: TabularFile = await loadTabularFile(sourceFilePath, bucketName, namespaceName, configFile.sourceFile);
+  let configFile: RowSplitterConfig = await loadConfigFile(configFilePath, bucketName, namespaceName, downloadFunction);
+  let sourceFile: TabularFile = await loadTabularFile(sourceFilePath, bucketName, namespaceName, configFile.sourceFile, downloadFunction);
 
   if (!configFile || !configFile.files) {
     throw new Error('Config file is missing required properties: files');
@@ -48,20 +63,14 @@ const handler = async (event: ObjectStorageEvent = {}) => {
   const { files } = await applySplitting(sourceFile, configFile);
 
   // Reformat JSON values into output files and write to object storage
-  await saveZippedOutputFiles(outputDirectory, files, bucketName, namespaceName, sourceFilePath, configFile.outputFile);
-  await saveTriggerFile(outputDirectory, bucketName, namespaceName);
+  await saveZippedOutputFiles(outputDirectory, files, bucketName, namespaceName, sourceFilePath, configFile.outputFile, uploadFunction);
+  await saveTriggerFile(outputDirectory, bucketName, namespaceName, uploadFunction);
 
   console.log(`Successfully processed file: ${sourceFilePath}`);
   console.log(`Generated ${files.length} output file(s)`);
+}
 
-  return {
-    ok: true,
-    objectName: sourceFilePath,
-    rowCount: sourceFile.rows.length,
-  };
-};
-
-module.exports = { handler };
+export { processFile };
 
 if (require.main === module) {
   fdk.handle(handler);
